@@ -5,11 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="ca53890c-11ce-4040-a0b2-faa0def50dd4" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.env" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/turkish-political-analyzer.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/turkish-political-analyzer.iml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/political_analyzer.py" beforeDir="false" afterPath="$PROJECT_DIR$/political_analyzer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/web_interface.py" beforeDir="false" afterPath="$PROJECT_DIR$/web_interface.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -78,7 +75,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1754295316120</updated>
-      <workItem from="1754295317122" duration="4630000" />
+      <workItem from="1754295317122" duration="5633000" />
     </task>
     <servers />
   </component>

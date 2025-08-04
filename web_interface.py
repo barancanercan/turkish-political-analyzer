@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Streamlit Web Arayüzü - Türk Siyasi Lider Analiz Sistemi
+Modern Web Arayüzü - Türk Siyasi Lider Analiz Sistemi V2.0
+Deploy Ready Version
 
 Kurulum:
 pip install streamlit pandas plotly
@@ -18,9 +19,8 @@ from plotly.subplots import make_subplots
 import json
 import io
 import time
-from datetime import datetime
-import sys
 import os
+from datetime import datetime
 
 # Ana sistem sınıfını import et
 try:
@@ -31,150 +31,358 @@ except ImportError:
 
 # Sayfa konfigürasyonu
 st.set_page_config(
-    page_title="🇹🇷 Türk Siyasi Lider Analiz Sistemi",
+    page_title="🇹🇷 Siyasi Analiz Sistemi",
     page_icon="🇹🇷",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
-# CSS stilleri
+# Modern CSS Tasarım
 st.markdown("""
 <style>
+    /* Ana sayfa stil */
+    .main > div {
+        padding-top: 2rem;
+    }
+
+    /* Başlık */
     .main-header {
-        font-size: 2.5rem;
-        color: #1f77b4;
         text-align: center;
+        padding: 2rem 0;
         margin-bottom: 2rem;
-        padding: 1rem;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .main-title {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        margin-bottom: 0.5rem;
     }
 
-    .metric-card {
-        background: #f0f2f6;
-        padding: 1rem;
-        border-radius: 10px;
-        border-left: 4px solid #1f77b4;
-        margin: 0.5rem 0;
+    .main-subtitle {
+        font-size: 1.2rem;
+        color: #6b7280;
+        font-weight: 400;
+    }
+
+    /* Kartlar */
+    .card {
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
+        margin-bottom: 2rem;
     }
 
     .leader-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+        text-align: center;
+    }
+
+    .leader-card.relevant {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border-color: #3b82f6;
+    }
+
+    .leader-card.positive {
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        border-color: #22c55e;
+    }
+
+    .leader-card.negative {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border-color: #ef4444;
+    }
+
+    /* Butonlar */
+    .stButton > button {
+        width: 100%;
+        height: 3rem;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Form elemanları */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        border-radius: 12px;
+        border: 2px solid #e5e7eb;
+        padding: 1rem;
+        font-size: 1rem;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    /* Metrikler */
+    .metric-container {
+        display: flex;
+        justify-content: space-around;
+        margin: 2rem 0;
+    }
+
+    .metric-card {
         background: white;
-        padding: 1rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin: 0.5rem 0;
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e5e7eb;
+        min-width: 120px;
     }
 
-    .success-box {
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
+    .metric-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .metric-label {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+    }
+
+    /* Alert'ler */
+    .success-alert {
+        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+        border: 1px solid #22c55e;
+        color: #15803d;
         padding: 1rem;
-        border-radius: 5px;
+        border-radius: 12px;
         margin: 1rem 0;
     }
 
-    .error-box {
-        background: #f8d7da;
-        border: 1px solid #f5c6cb;
-        color: #721c24;
+    .info-alert {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border: 1px solid #3b82f6;
+        color: #1d4ed8;
         padding: 1rem;
-        border-radius: 5px;
+        border-radius: 12px;
         margin: 1rem 0;
     }
 
-    .info-box {
-        background: #d1ecf1;
-        border: 1px solid #bee5eb;
-        color: #0c5460;
+    .error-alert {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border: 1px solid #ef4444;
+        color: #dc2626;
         padding: 1rem;
-        border-radius: 5px;
+        border-radius: 12px;
         margin: 1rem 0;
+    }
+
+    /* Progress bar */
+    .stProgress > div > div > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 6px;
+    }
+
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+        background: #f8fafc;
+        padding: 0.5rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .stTabs [data-baseweb="tab-list"] button {
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+    }
+
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    /* File uploader */
+    .stFileUploader > div > button {
+        border: 2px dashed #667eea;
+        border-radius: 12px;
+        padding: 2rem;
+        background: #f8fafc;
+        color: #374151;
+        font-weight: 600;
+    }
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 3rem 1rem;
+        margin-top: 4rem;
+        border-top: 1px solid #e5e7eb;
+        background: #f8fafc;
+    }
+
+    .footer-text {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .footer-heart {
+        color: #ef4444;
+        animation: heartbeat 2s ease-in-out infinite;
+    }
+
+    @keyframes heartbeat {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .main-title {
+            font-size: 2rem;
+        }
+
+        .card {
+            padding: 1rem;
+        }
+
+        .metric-container {
+            flex-direction: column;
+            gap: 1rem;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-def main():
-    """Ana web arayüzü"""
+def get_api_key():
+    """API key'i environment veya secrets'tan al"""
+    # Streamlit secrets'tan al
+    if hasattr(st, 'secrets') and 'GOOGLE_API_KEY' in st.secrets:
+        return st.secrets['GOOGLE_API_KEY']
 
-    # Başlık
-    st.markdown('<h1 class="main-header">🇹🇷 Türk Siyasi Lider Analiz Sistemi</h1>',
-                unsafe_allow_html=True)
+    # Environment'tan al
+    return os.getenv('GOOGLE_API_KEY', '')
 
-    st.markdown("""
-    <div class="info-box">
-        <strong>ℹ️ Sistem Hakkında:</strong><br>
-        Bu sistem sosyal medya içeriklerini analiz ederek 4 siyasi lidere göre kategorize eder 
-        ve sentiment analizi yapar: <strong>RTE, ÖÖ, MY, EI</strong>
+
+def render_leader_result(leader_code, leader_name, result):
+    """Lider sonucunu kart olarak render et"""
+    is_relevant = result.get(f'IS_{leader_code}', 0)
+    sentiment = result.get(f'{leader_code}_SENTIMENT', 0)
+
+    # Kart class'ını belirle
+    card_class = "leader-card"
+    icon = "➖"
+    status = "İlgisiz"
+
+    if is_relevant == 1:
+        card_class += " relevant"
+        if sentiment == 1:
+            card_class += " positive"
+            icon = "😊"
+            status = "Pozitif"
+        elif sentiment == -1:
+            card_class += " negative"
+            icon = "😠"
+            status = "Negatif"
+        else:
+            icon = "😐"
+            status = "Nötr"
+
+    st.markdown(f"""
+    <div class="{card_class}">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">{icon}</div>
+        <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;">{leader_name}</div>
+        <div style="color: #6b7280; font-size: 0.9rem;">{status}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    # Sidebar - Konfigürasyon
-    with st.sidebar:
-        st.header("⚙️ Konfigürasyon")
+
+def main():
+    """Ana uygulama"""
+
+    # Başlık
+    st.markdown("""
+    <div class="main-header">
+        <h1 class="main-title">🇹🇷 Siyasi Lider Analiz Sistemi</h1>
+        <p class="main-subtitle">AI destekli otomatik sınıflandırma ve sentiment analizi</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # API Key kontrolü
+    api_key = get_api_key()
+
+    if not api_key:
+        st.markdown("""
+        <div class="error-alert">
+            <strong>⚠️ API Anahtarı Gerekli</strong><br>
+            Lütfen Google Gemini API anahtarınızı girin veya environment/secrets'ta ayarlayın.
+        </div>
+        """, unsafe_allow_html=True)
 
         api_key = st.text_input(
-            "Google API Key",
+            "Google API Key:",
             type="password",
-            value="AIzaSyAG8DWgf3MCm_t6gdmMM0V7kw5tyQP1fGg",
-            help="Google Gemini API anahtarınızı girin"
+            placeholder="AIzaSyCklJ6T0IDgjuH7N8fbWl6AQtJuCEGbRA8"
         )
 
-        st.subheader("📊 İleri Ayarlar")
-        batch_size = st.slider("Batch Boyutu", 1, 10, 3)
-        max_workers = st.slider("Paralel İşlem", 1, 5, 2)
-        rate_limit = st.slider("Rate Limit (saniye)", 0.5, 5.0, 1.5, 0.1)
+        if not api_key:
+            st.stop()
 
-        st.subheader("📈 Lider Bilgileri")
-        leaders_info = {
-            'RTE': 'Recep Tayyip Erdoğan',
-            'ÖÖ': 'Özgür Özel',
-            'MY': 'Mansur Yavaş',
-            'EI': 'Ekrem İmamoğlu'
-        }
+    # Lider bilgileri
+    leaders_info = {
+        'RTE': 'Recep Tayyip Erdoğan',
+        'ÖÖ': 'Özgür Özel',
+        'MY': 'Mansur Yavaş',
+        'EI': 'Ekrem İmamoğlu'
+    }
 
-        for code, name in leaders_info.items():
-            st.text(f"{code}: {name}")
-
-    # Ana içerik - Tab'lar
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "🧪 Tek İçerik Testi",
-        "📁 Toplu Analiz",
-        "📊 Sonuçlar",
-        "📋 Kullanım Kılavuzu"
-    ])
+    # Ana tab'lar
+    tab1, tab2 = st.tabs(["🧪 Tek İçerik Testi", "📊 Toplu Analiz"])
 
     # Tab 1: Tek İçerik Testi
     with tab1:
-        st.header("🧪 Tek İçerik Analizi")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        col1, col2 = st.columns([1, 1])
+        st.markdown("### 🧪 Tek İçerik Analizi")
+        st.markdown("Sosyal medya içeriğinizi test edin ve anlık sonuç alın.")
 
+        col1, col2 = st.columns([1, 3])
         with col1:
             test_account = st.text_input(
-                "Hesap Adı",
-                value="@burcukoksal03",
+                "Hesap Adı:",
+                value="@test_user",
                 placeholder="@ornek_hesap"
             )
 
-        with col2:
-            st.empty()  # Boşluk için
-
         test_text = st.text_area(
-            "İçerik Metni",
-            value="Ata tohumlarımızı hasat ettik! 11 Ekim'de Ankara Büyükşehir Belediye Başkanımız Mansur Yavaş'la birlikte ektiğimiz arpa, buğday ve çörek otunun bereketini topladık. Desteklerinden dolayı Mansur Başkanımıza teşekkür ediyorum. @mansuryavas06",
-            height=150,
-            placeholder="Analiz edilecek sosyal medya içeriğini yazın..."
+            "İçerik Metni:",
+            value="Mansur Yavaş'la harika bir proje yaptık! Desteklerinden dolayı teşekkürler.",
+            height=120,
+            placeholder="Analiz edilecek sosyal medya içeriğini buraya yazın..."
         )
 
-        if st.button("🚀 Analiz Et", type="primary"):
-            if not api_key:
-                st.error("❌ Lütfen API anahtarını girin!")
-            elif not test_text.strip():
+        # Analiz butonu
+        if st.button("🚀 Analiz Et", key="single_analyze"):
+            if not test_text.strip():
                 st.error("❌ Lütfen analiz edilecek içeriği girin!")
             else:
                 with st.spinner("🔄 Analiz yapılıyor..."):
@@ -183,364 +391,241 @@ def main():
                             api_key,
                             batch_size=1,
                             max_workers=1,
-                            rate_limit_sec=rate_limit
+                            rate_limit_sec=1.5
                         )
 
                         result = analyzer.process_single_content(test_account, test_text)
 
                         if result:
-                            st.success("✅ Analiz tamamlandı!")
+                            st.markdown("""
+                            <div class="success-alert">
+                                <strong>✅ Analiz tamamlandı!</strong>
+                            </div>
+                            """, unsafe_allow_html=True)
 
                             # Sonuçları göster
-                            col1, col2 = st.columns([1, 1])
+                            st.markdown("#### 📊 Analiz Sonuçları")
 
-                            with col1:
-                                st.subheader("👥 Lider Sınıflandırması")
-                                leaders = ['RTE', 'ÖÖ', 'MY', 'EI']
-                                for leader in leaders:
-                                    value = result.get(f'IS_{leader}', -1)
-                                    if value == 1:
-                                        st.success(f"✅ {leader}: İlgili (+1)")
-                                    else:
-                                        st.info(f"➖ {leader}: İlgisiz (-1)")
-
-                            with col2:
-                                st.subheader("😊 Sentiment Analizi")
-                                for leader in leaders:
-                                    sentiment_key = f'{leader}_SENTIMENT'
-                                    sentiment = result.get(sentiment_key)
-
-                                    if sentiment is not None:
-                                        if sentiment == 1:
-                                            st.success(f"😊 {leader}: Pozitif (+1)")
-                                        elif sentiment == 0:
-                                            st.info(f"😐 {leader}: Nötr (0)")
-                                        elif sentiment == -1:
-                                            st.error(f"😠 {leader}: Negatif (-1)")
-                                    else:
-                                        st.text(f"➖ {leader}: Analiz yok")
-
-                            # Detaylı sonuç
-                            st.subheader("📄 Detaylı Sonuç")
-                            st.json(result)
-
+                            cols = st.columns(4)
+                            for i, (leader_code, leader_name) in enumerate(leaders_info.items()):
+                                with cols[i]:
+                                    render_leader_result(leader_code, leader_name, result)
                         else:
-                            st.error("❌ Analiz başarısız!")
+                            st.error("❌ Analiz başarısız! Lütfen tekrar deneyin.")
 
                     except Exception as e:
                         st.error(f"❌ Hata oluştu: {str(e)}")
 
+        st.markdown('</div>', unsafe_allow_html=True)
+
     # Tab 2: Toplu Analiz
     with tab2:
-        st.header("📁 Toplu CSV Analizi")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+
+        st.markdown("### 📊 Toplu CSV Analizi")
+        st.markdown("Büyük veri setlerinizi yükleyip toplu analiz yapın.")
 
         # Dosya yükleme
         uploaded_file = st.file_uploader(
-            "CSV Dosyası Seçin",
+            "CSV Dosyası Seçin:",
             type=['csv'],
-            help="ACCOUNT_NAME ve TEXT sütunları içeren CSV dosyası yükleyin"
+            help="ACCOUNT_NAME ve TEXT sütunları içeren CSV dosyası"
         )
 
         if uploaded_file is not None:
             try:
-                # CSV'yi önizle
                 df = pd.read_csv(uploaded_file)
-                st.success(f"✅ Dosya yüklendi: {len(df)} kayıt")
 
-                # Veri önizleme
-                st.subheader("👀 Veri Önizleme")
-                st.dataframe(df.head(10))
+                st.markdown(f"""
+                <div class="info-alert">
+                    <strong>📄 Dosya Yüklendi:</strong> {len(df):,} kayıt bulundu
+                </div>
+                """, unsafe_allow_html=True)
 
                 # Sütun kontrolü
                 required_cols = ['ACCOUNT_NAME', 'TEXT']
                 missing_cols = [col for col in required_cols if col not in df.columns]
 
                 if missing_cols:
-                    st.error(f"❌ Eksik sütunlar: {missing_cols}")
+                    st.markdown(f"""
+                    <div class="error-alert">
+                        <strong>❌ Eksik Sütunlar:</strong> {', '.join(missing_cols)}
+                    </div>
+                    """, unsafe_allow_html=True)
                 else:
-                    st.success("✅ Gerekli sütunlar mevcut")
+                    # Veri önizleme
+                    with st.expander("👀 Veri Önizleme"):
+                        st.dataframe(df.head(10), use_container_width=True)
 
-                    # İşlem başlat butonu
-                    col1, col2, col3 = st.columns([1, 1, 1])
-
+                    # Ayarlar
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        batch_size = st.selectbox("Batch Boyutu:", [1, 3, 5, 10], index=1)
                     with col2:
-                        if st.button("🚀 Toplu Analizi Başlat", type="primary"):
-                            if not api_key:
-                                st.error("❌ Lütfen API anahtarını girin!")
-                            else:
-                                # Session state'de analiz durumunu takip et
-                                if 'analysis_running' not in st.session_state:
-                                    st.session_state.analysis_running = False
+                        max_workers = st.selectbox("Paralel İşlem:", [1, 2, 3], index=1)
+                    with col3:
+                        rate_limit = st.selectbox("Rate Limit (s):", [1.0, 1.5, 2.0, 3.0], index=1)
 
-                                if not st.session_state.analysis_running:
-                                    st.session_state.analysis_running = True
+                    # Analiz butonu
+                    if st.button("🚀 Toplu Analizi Başlat", key="batch_analyze"):
+                        # Progress tracking
+                        progress_container = st.container()
 
-                                    # Progress bar ve durum
-                                    progress_bar = st.progress(0)
-                                    status_text = st.empty()
+                        with progress_container:
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
 
-                                    try:
-                                        analyzer = PoliticalAnalysisSystem(
-                                            api_key,
-                                            batch_size=batch_size,
-                                            max_workers=max_workers,
-                                            rate_limit_sec=rate_limit
-                                        )
+                            try:
+                                analyzer = PoliticalAnalysisSystem(
+                                    api_key,
+                                    batch_size=batch_size,
+                                    max_workers=max_workers,
+                                    rate_limit_sec=rate_limit
+                                )
 
-                                        # Veriyi hazırla
-                                        data_records = df.to_dict('records')
-                                        results = []
+                                data_records = df.to_dict('records')
+                                results = []
+                                total_items = len(data_records)
 
-                                        total_items = len(data_records)
+                                # Batch'ler halinde işle
+                                for i in range(0, total_items, batch_size):
+                                    batch = data_records[i:i + batch_size]
+                                    current_end = min(i + batch_size, total_items)
 
-                                        # Batch'ler halinde işle
-                                        for i in range(0, total_items, batch_size):
-                                            batch = data_records[i:i + batch_size]
+                                    status_text.text(f"İşleniyor: {i + 1}-{current_end}/{total_items}")
 
-                                            status_text.text(
-                                                f"İşleniyor: {i + 1}-{min(i + batch_size, total_items)}/{total_items}")
+                                    batch_results = analyzer.process_batch_parallel(batch)
+                                    results.extend(batch_results)
 
-                                            # Batch işle
-                                            batch_results = analyzer.process_batch_parallel(batch)
-                                            results.extend(batch_results)
+                                    progress = current_end / total_items
+                                    progress_bar.progress(progress)
 
-                                            # Progress güncelle
-                                            progress = min((i + batch_size) / total_items, 1.0)
-                                            progress_bar.progress(progress)
+                                    time.sleep(0.1)  # UI güncelleme için
 
-                                            time.sleep(0.1)  # UI güncellemesi için
+                                # Sonuçları session state'e kaydet
+                                st.session_state.analysis_results = results
+                                st.session_state.analysis_df = pd.DataFrame(results)
 
-                                        # Sonuçları session state'e kaydet
-                                        st.session_state.analysis_results = results
-                                        st.session_state.analysis_completed = True
+                                status_text.success("✅ Analiz tamamlandı!")
+                                time.sleep(1)
 
-                                        status_text.success("✅ Analiz tamamlandı!")
+                                # Sonuç sayfasına yönlendir
+                                st.rerun()
 
-                                    except Exception as e:
-                                        st.error(f"❌ Analiz hatası: {str(e)}")
-
-                                    finally:
-                                        st.session_state.analysis_running = False
-
-                                else:
-                                    st.warning("⚠️ Analiz zaten devam ediyor...")
+                            except Exception as e:
+                                st.error(f"❌ Analiz hatası: {str(e)}")
 
             except Exception as e:
                 st.error(f"❌ Dosya okuma hatası: {str(e)}")
 
-    # Tab 3: Sonuçlar
-    with tab3:
-        st.header("📊 Analiz Sonuçları")
+        st.markdown('</div>', unsafe_allow_html=True)
 
+        # Sonuçları göster (eğer varsa)
         if 'analysis_results' in st.session_state:
             results = st.session_state.analysis_results
 
             if results:
-                # Özet istatistikler
-                st.subheader("📈 Özet İstatistikler")
+                st.markdown('<div class="card">', unsafe_allow_html=True)
+                st.markdown("### 📈 Analiz Sonuçları")
 
-                col1, col2, col3, col4 = st.columns(4)
+                # Özet metrikler
+                total_processed = len(results)
 
-                with col1:
-                    st.metric("Toplam İşlenen", len(results))
-
-                total_mentions = sum(
-                    1 for r in results
-                    if any(r.get(f'IS_{leader}') == 1 for leader in ['RTE', 'ÖÖ', 'MY', 'EI'])
-                )
-                with col2:
-                    st.metric("Toplam Bahsetme", total_mentions)
-
-                # Sentiment dağılımları hesapla
-                all_sentiments = []
-                for r in results:
-                    for leader in ['RTE', 'ÖÖ', 'MY', 'EI']:
-                        sentiment = r.get(f'{leader}_SENTIMENT')
-                        if sentiment is not None:
-                            all_sentiments.append(sentiment)
-
-                avg_sentiment = sum(all_sentiments) / len(all_sentiments) if all_sentiments else 0
-
-                with col3:
-                    st.metric("Ortalama Sentiment", f"{avg_sentiment:.2f}")
-
-                with col4:
-                    success_rate = (len(results) / len(results)) * 100 if results else 0
-                    st.metric("Başarı Oranı", f"{success_rate:.1f}%")
-
-                # Lider bazlı analiz
-                st.subheader("👥 Lider Bazlı Analiz")
-
-                leader_data = []
-                for leader_code in ['RTE', 'ÖÖ', 'MY', 'EI']:
-                    leader_name = leaders_info[leader_code]
-
+                # Lider istatistikleri
+                leader_stats = {}
+                for leader_code in leaders_info.keys():
                     mentions = sum(1 for r in results if r.get(f'IS_{leader_code}') == 1)
 
-                    sentiments = [r.get(f'{leader_code}_SENTIMENT') for r in results
-                                  if r.get(f'{leader_code}_SENTIMENT') is not None]
+                    sentiments = [r.get(f'{leader_code}_SENTIMENT', 0)
+                                  for r in results if r.get(f'IS_{leader_code}') == 1]
 
                     positive = sum(1 for s in sentiments if s == 1)
-                    neutral = sum(1 for s in sentiments if s == 0)
                     negative = sum(1 for s in sentiments if s == -1)
+                    neutral = sum(1 for s in sentiments if s == 0)
 
-                    leader_data.append({
-                        'Lider': leader_name,
-                        'Kod': leader_code,
-                        'Bahsetme': mentions,
-                        'Pozitif': positive,
-                        'Nötr': neutral,
-                        'Negatif': negative,
-                        'Toplam Sentiment': len(sentiments)
-                    })
+                    leader_stats[leader_code] = {
+                        'name': leaders_info[leader_code],
+                        'mentions': mentions,
+                        'positive': positive,
+                        'negative': negative,
+                        'neutral': neutral
+                    }
 
-                # Lider tablosu
-                leader_df = pd.DataFrame(leader_data)
-                st.dataframe(leader_df, use_container_width=True)
+                # Metrik kartları
+                cols = st.columns(4)
+                for i, (leader_code, stats) in enumerate(leader_stats.items()):
+                    with cols[i]:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div class="metric-number">{stats['mentions']}</div>
+                            <div class="metric-label">{stats['name']}</div>
+                            <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
+                                +{stats['positive']} -{stats['negative']} ={stats['neutral']}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
-                # Görselleştirmeler
-                st.subheader("📊 Görselleştirmeler")
+                # Görselleştirme
+                if any(stats['mentions'] > 0 for stats in leader_stats.values()):
+                    st.markdown("#### 📊 Görsel Analiz")
 
-                # Bahsetme grafiği
-                fig_mentions = px.bar(
-                    leader_df,
-                    x='Lider',
-                    y='Bahsetme',
-                    title='Lider Bahsetme Sayıları',
-                    color='Bahsetme',
-                    color_continuous_scale='Blues'
-                )
-                st.plotly_chart(fig_mentions, use_container_width=True)
+                    # Bahsetme grafiği
+                    mentions_data = [stats['mentions'] for stats in leader_stats.values()]
+                    leader_names = [stats['name'] for stats in leader_stats.values()]
 
-                # Sentiment dağılımı
-                fig_sentiment = make_subplots(
-                    rows=2, cols=2,
-                    subplot_titles=[f"{row['Lider']} ({row['Kod']})" for _, row in leader_df.iterrows()],
-                    specs=[[{"type": "pie"}, {"type": "pie"}],
-                           [{"type": "pie"}, {"type": "pie"}]]
-                )
+                    fig = px.bar(
+                        x=leader_names,
+                        y=mentions_data,
+                        title="Lider Bahsetme Sayıları",
+                        color=mentions_data,
+                        color_continuous_scale="viridis"
+                    )
+                    fig.update_layout(
+                        title_font_size=16,
+                        xaxis_title="Liderler",
+                        yaxis_title="Bahsetme Sayısı",
+                        showlegend=False
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
 
-                colors = ['#ff4444', '#ffaa00', '#44ff44']  # Negatif, Nötr, Pozitif
+                # İndirme bölümü
+                st.markdown("#### 💾 Sonuçları İndir")
 
-                for i, (_, row) in enumerate(leader_df.iterrows()):
-                    if row['Toplam Sentiment'] > 0:
-                        pie_row = (i // 2) + 1
-                        pie_col = (i % 2) + 1
+                results_df = st.session_state.analysis_df
+                csv_data = results_df.to_csv(index=False, encoding='utf-8')
 
-                        fig_sentiment.add_trace(
-                            go.Pie(
-                                labels=['Negatif', 'Nötr', 'Pozitif'],
-                                values=[row['Negatif'], row['Nötr'], row['Pozitif']],
-                                marker_colors=colors,
-                                showlegend=(i == 0)
-                            ),
-                            row=pie_row, col=pie_col
-                        )
-
-                fig_sentiment.update_layout(title_text="Lider Sentiment Dağılımları")
-                st.plotly_chart(fig_sentiment, use_container_width=True)
-
-                # Sonuçları indir
-                st.subheader("💾 Sonuçları İndir")
-
-                # CSV oluştur
-                results_df = pd.DataFrame(results)
-                csv_buffer = io.StringIO()
-                results_df.to_csv(csv_buffer, index=False, encoding='utf-8')
-                csv_string = csv_buffer.getvalue()
-
-                # JSON oluştur
-                json_string = json.dumps(results, ensure_ascii=False, indent=2)
-
-                col1, col2 = st.columns(2)
-
+                col1, col2 = st.columns([1, 1])
                 with col1:
                     st.download_button(
-                        label="📄 CSV İndir",
-                        data=csv_string,
-                        file_name=f"siyasi_analiz_sonuclari_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                        mime="text/csv"
+                        "📄 CSV Olarak İndir",
+                        csv_data,
+                        f"siyasi_analiz_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        "text/csv",
+                        use_container_width=True
                     )
-
                 with col2:
+                    json_data = json.dumps(results, ensure_ascii=False, indent=2)
                     st.download_button(
-                        label="📋 JSON İndir",
-                        data=json_string,
-                        file_name=f"siyasi_analiz_sonuclari_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                        mime="application/json"
+                        "📋 JSON Olarak İndir",
+                        json_data,
+                        f"siyasi_analiz_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        "application/json",
+                        use_container_width=True
                     )
 
-            else:
-                st.info("ℹ️ Henüz analiz sonucu bulunmuyor.")
-        else:
-            st.info("ℹ️ Önce analiz yapın, sonuçlar burada görünecek.")
+                st.markdown('</div>', unsafe_allow_html=True)
 
-    # Tab 4: Kullanım Kılavuzu
-    with tab4:
-        st.header("📋 Kullanım Kılavuzu")
-
-        st.markdown("""
-        ## 🎯 Sistem Özellikleri
-
-        ### Agent 1: Lider Sınıflandırma
-        - **RTE**: Recep Tayyip Erdoğan (AK Parti, Cumhurbaşkanı)
-        - **ÖÖ**: Özgür Özel (CHP Genel Başkanı)
-        - **MY**: Mansur Yavaş (Ankara Büyükşehir Belediye Başkanı)
-        - **EI**: Ekrem İmamoğlu (İstanbul Büyükşehir Belediye Başkanı)
-
-        ### Agent 2: Sentiment Analizi
-        - **+1**: Pozitif (övgü, destek, beğeni)
-        - **0**: Nötr (tarafsız bahsetme, objektif)
-        - **-1**: Negatif (eleştiri, saldırı, olumsuz)
-
-        ## 📊 CSV Format Gereksinimleri
-
-        ### Girdi CSV'niz şu sütunları içermelidir:
-        ```
-        ACCOUNT_NAME,TEXT
-        @user1,"İçerik metni 1"
-        @user2,"İçerik metni 2"
-        ```
-
-        ### Çıktı CSV formatı:
-        ```
-        ACCOUNT_NAME,TEXT,IS_RTE,IS_ÖÖ,IS_MY,IS_EI,RTE_SENTIMENT,ÖÖ_SENTİMENT,MY_SENTIMENT,EI_SENTIMENT
-        ```
-
-        ## 🚀 Hızlı Başlangıç
-
-        1. **API Anahtarı**: Google Gemini API anahtarınızı yan panele girin
-        2. **Tek Test**: "Tek İçerik Testi" sekmesinde hızlı test yapın
-        3. **Toplu Analiz**: CSV dosyanızı yükleyip toplu analiz başlatın
-        4. **Sonuçlar**: "Sonuçlar" sekmesinde detaylı analizi görün
-
-        ## ⚙️ Performans Ayarları
-
-        - **Batch Boyutu**: Aynı anda işlenecek kayıt sayısı (1-10)
-        - **Paralel İşlem**: Eş zamanlı worker sayısı (1-5)
-        - **Rate Limit**: API çağrıları arası bekleme süresi (0.5-5 saniye)
-
-        ## 💡 İpuçları
-
-        - Küçük veri setleri için batch boyutunu artırabilirsiniz
-        - API limitlerini aşmamak için rate limit'i ayarlayın
-        - İşlem sırasında sayfayı kapatmayın
-        - Büyük dosyalar için komut satırı versiyonunu tercih edin
-
-        ## 🛠️ Komut Satırı Kullanımı
-
-        Büyük veri setleri için terminal kullanın:
-        ```bash
-        pip install requests pandas tqdm colorama
-        python political_analyzer.py input.csv output.csv YOUR_API_KEY
-        ```
-
-        ## 📞 Destek
-
-        - Sistem hataları için log dosyalarını kontrol edin
-        - API limitleri için Google Cloud Console'u kontrol edin
-        - Büyük dosyalar için komut satırı versiyonunu kullanın
-        """)
+    # Footer
+    st.markdown("""
+    <div class="footer">
+        <div class="footer-text">
+            Baran Can Ercan tarafından <span class="footer-heart">❤️</span> ile yapılmıştır
+        </div>
+        <div style="font-size: 0.8rem; color: #9ca3af;">
+            🇹🇷 Türk Siyasi Lider Analiz Sistemi V2.0 · Google Gemini AI Destekli
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
