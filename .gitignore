@@ -1,0 +1,143 @@
+# Türk Siyasi Lider Analiz Sistemi V2.0 - Git Ignore
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+*.env
+
+# API Keys ve Sensitive Data
+api_keys.txt
+secrets.json
+config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# Streamlit
+.streamlit/
+
+# Log files
+*.log
+logs/
+political_analysis.log
+
+# Progress files
+*.progress.json
+
+# CSV files (opsiyonel - eğer büyük test dosyaları varsa)
+# *.csv
+# test_data/
+# results/
+
+# JSON reports
+*_report.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Database files
+*.db
+*.sqlite3
+
+# Temporary files
+temp/
+tmp/
+*.temp
+
+# Docker
+.dockerignore
+Dockerfile.backup
+
+# Deployment files
+.vercel
+.netlify
+.firebase
+.gcloudignore
+
+# Documentation builds
+docs/_build/
+site/
+
+# Misc
+.sass-cache/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

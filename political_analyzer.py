@@ -190,30 +190,30 @@ class PoliticalAnalysisSystem:
             Sınıflandırma sonucu
         """
         prompt = f'''
-Sen bir Türk siyasi analiz uzmanısın. Aşağıdaki sosyal medya içeriğini analiz ederek, bu içeriğin hangi siyasi lideri ilgilendirdiğini belirle.
+Sen bir Türk siyasi analiz uzmanısın. Aşağıdaki sosyal medya içeriğini ya da haber metnini analiz ederek, bu içeriğin hangi siyasi lideri ilgilendirdiğini belirle.
 
 Liderler:
 - RTE: Recep Tayyip Erdoğan (AK Parti, Cumhurbaşkanı)
-- ÖÖ: Özgür Özel (CHP Genel Başkanı)
+- OO: Özgür Özel (CHP Genel Başkanı)
 - MY: Mansur Yavaş (Ankara Büyükşehir Belediye Başkanı, CHP)
-- EI: Ekrem İmamoğlu (İstanbul Büyükşehir Belediye Başkanı, CHP)
+- EI: Ekrem İmamoğlu (İstanbul Büyükşehir Belediye Başkanı, CHP Cumhurbaşkanı Adayı, CHP)
 
 Kurallar:
 1. İçerik bir lideri doğrudan bahsediyorsa, o lidere +1 ver
 2. İçerik bir liderin partisini/görevini bahsediyorsa, o lidere +1 ver
-3. Diğer tüm liderlere -1 ver
-4. Eğer hiçbir lider açık şekilde ilgili değilse, hepsine -1 ver
-5. Birden fazla lider ilgiliyse, en çok ilgili olana +1, diğerlerine -1 ver
+3. Diğer tüm liderlere 0 ver
+4. Eğer hiçbir lider açık şekilde ilgili değilse, hepsine 0 ver
+5. Birden fazla lider ilgiliyse, hepsine +1 ilgisiz olanlara 0 ver.
 
 İçerik: "{text}"
 Hesap: "{account_name}"
 
 Sonucu sadece JSON formatında ver:
 {{
-    "IS_RTE": 1 veya -1,
-    "IS_ÖÖ": 1 veya -1,
-    "IS_MY": 1 veya -1,
-    "IS_EI": 1 veya -1,
+    "IS_RTE": 1 veya 0,
+    "IS_ÖÖ": 1 veya 0,
+    "IS_MY": 1 veya 0,
+    "IS_EI": 1 veya 0,
     "reasoning": "Kısa açıklama"
 }}
 '''
@@ -235,10 +235,10 @@ Sonucu sadece JSON formatında ver:
             self.stats['errors'] += 1
 
         return {
-            "IS_RTE": -1,
-            "IS_ÖÖ": -1,
-            "IS_MY": -1,
-            "IS_EI": -1,
+            "IS_RTE": 0,
+            "IS_ÖÖ": 0,
+            "IS_MY": 0,
+            "IS_EI": 0,
             "reasoning": "API hatası - varsayılan değerler"
         }
 
@@ -255,7 +255,9 @@ Sonucu sadece JSON formatında ver:
             Sentiment değeri (-1, 0, 1)
         """
         prompt = f'''
-Sen bir sentiment analiz uzmanısın. Aşağıdaki sosyal medya içeriğinin "{leader_name}" hakkındaki duygusal tonunu analiz et.
+Sen bir politik sentiment analiz uzmanısın. 
+
+Aşağıdaki sosyal medya içeriği ya da haberi "{leader_name}" hakkındaki duygusal tonunu analiz et. 
 
 İçerik: "{text}"
 Hesap: "{account_name}"

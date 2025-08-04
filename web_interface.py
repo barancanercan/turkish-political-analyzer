@@ -120,7 +120,7 @@ def main():
         api_key = st.text_input(
             "Google API Key",
             type="password",
-            value="AIzaSyCklJ6T0IDgjuH7N8fbWl6AQtJuCEGbRA8",
+            value="AIzaSyAG8DWgf3MCm_t6gdmMM0V7kw5tyQP1fGg",
             help="Google Gemini API anahtarınızı girin"
         )
 
