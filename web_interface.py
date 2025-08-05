@@ -499,7 +499,7 @@ def main():
     <div class="main-header">
         <h1 class="main-title">🇹🇷 Siyasi Analiz Sistemi</h1>
         <p class="subtitle">AI destekli otomatik lider sınıflandırma ve sentiment analizi</p>
-        <p class="developer-credit">Baran Can Ercan tarafından geliştirilmiştir.</p>
+        <p class="developer-credit">Baran Can Ercan tarafından  <span class="footer-heart">❤️</span> ile geliştirilmiştir.</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -797,7 +797,7 @@ export GOOGLE_API_KEY="your_api_key_here"
         <p>
             Baran Can Ercan tarafından 
             <span class="footer-heart">❤️</span> 
-            ile yapılmıştır
+            ile geliştirilmiştir.
         </p>
         <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.5rem;">
             🇹🇷 Türk Siyasi Lider Analiz Sistemi V2.0 • 🤖 AI Destekli • 🔒 Güvenli
