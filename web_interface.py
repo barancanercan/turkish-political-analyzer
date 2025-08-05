@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Modern Web Arayüzü - Türk Siyasi Lider Analiz Sistemi V2.0
-Excel ve CSV Destekli Versiyon
+Modern Güvenli Web Arayüzü - Türk Siyasi Lider Analiz Sistemi V2.0
+Minimalist tasarım, dark mode uyumlu, güvenli API yönetimi
 
 Kurulum:
-pip install streamlit pandas plotly openpyxl
+pip install streamlit pandas plotly openpyxl python-dotenv
 
 Çalıştırma:
 streamlit run web_interface.py
@@ -14,13 +14,20 @@ streamlit run web_interface.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import json
 import io
 import time
 import os
 from datetime import datetime
+from pathlib import Path
+
+# Güvenli API key yönetimi
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
 
 # Ana sistem sınıfını import et
 try:
@@ -31,267 +38,459 @@ except ImportError:
 
 # Sayfa konfigürasyonu
 st.set_page_config(
-    page_title="🇹🇷 Siyasi Analiz Sistemi",
+    page_title="🇹🇷 Siyasi Analiz",
     page_icon="🇹🇷",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
-# Modern CSS Tasarım
+# Modern minimalist CSS - Light theme
 st.markdown("""
 <style>
-    /* Ana sayfa stil */
-    .main > div {
-        padding-top: 2rem;
+    /* Ana tema - Beyaz tema */
+    .stApp {
+        background: #ffffff;
+        color: #1f2937;
     }
 
     /* Başlık */
     .main-header {
         text-align: center;
-        padding: 2rem 0;
+        padding: 2rem 0 1rem 0;
         margin-bottom: 2rem;
     }
 
     .main-title {
-        font-size: 3rem;
+        font-size: 2.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: #1f2937;
         margin-bottom: 0.5rem;
     }
 
-    .main-subtitle {
-        font-size: 1.2rem;
+    .subtitle {
         color: #6b7280;
+        font-size: 1rem;
         font-weight: 400;
+        opacity: 0.8;
+        margin-bottom: 0.5rem;
+    }
+
+    .developer-credit {
+        color: #9ca3af;
+        font-size: 0.9rem;
+        font-style: italic;
+        font-weight: 300;
     }
 
     /* Kartlar */
     .card {
-        background: white;
-        padding: 2rem;
-        border-radius: 16px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        border: 1px solid #e5e7eb;
-        margin-bottom: 2rem;
-    }
-
-    .leader-card {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        background: #f8fafc;
         padding: 1.5rem;
         border-radius: 12px;
-        border: 2px solid transparent;
-        transition: all 0.3s ease;
+        border: 1px solid #e5e7eb;
+        margin: 1rem 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    /* Lider sonuç kartları */
+    .leader-result {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 0.5rem 0;
         text-align: center;
+        transition: all 0.3s ease;
     }
 
-    .leader-card.relevant {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-        border-color: #3b82f6;
+    .leader-result.neutral {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        color: #64748b;
     }
 
-    .leader-card.positive {
-        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-        border-color: #22c55e;
+    .leader-result.positive {
+        background: rgba(34, 197, 94, 0.1);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        color: #22c55e;
     }
 
-    .leader-card.negative {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-        border-color: #ef4444;
+    .leader-result.negative {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
     }
 
-    /* Butonlar */
+    .leader-result.relevant {
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        color: #3b82f6;
+    }
+
+    .leader-icon {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .leader-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .leader-status {
+        font-size: 0.8rem;
+        opacity: 0.8;
+    }
+
+    /* Butonlar - Dark mode uyumlu */
     .stButton > button {
         width: 100%;
-        height: 3rem;
+        height: 2.8rem;
         border: none;
-        border-radius: 12px;
+        border-radius: 8px;
         font-weight: 600;
-        font-size: 1.1rem;
-        transition: all 0.3s ease;
+        font-size: 1rem;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
+        transition: all 0.3s ease;
     }
 
     .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
 
     /* Form elemanları */
     .stTextInput > div > div > input,
     .stTextArea > div > div > textarea {
-        border-radius: 12px;
-        border: 2px solid #e5e7eb;
-        padding: 1rem;
-        font-size: 1rem;
+        border-radius: 8px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        color: #1f2937;
     }
 
     .stTextInput > div > div > input:focus,
     .stTextArea > div > div > textarea:focus {
         border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+
+    /* Form label'ları siyah yap */
+    .stTextArea > label,
+    .stTextInput > label,
+    .stSelectbox > label,
+    .stFileUploader > label,
+    label[data-testid="stWidgetLabel"] {
+        color: #1f2937 !important;
+        font-weight: 500 !important;
+        font-size: 1rem !important;
+    }
+
+    /* Form label içindeki div'ler */
+    .stTextArea > label > div,
+    .stTextInput > label > div,
+    .stSelectbox > label > div,
+    .stFileUploader > label > div {
+        color: #1f2937 !important;
     }
 
     /* Metrikler */
-    .metric-container {
-        display: flex;
-        justify-content: space-around;
-        margin: 2rem 0;
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
     }
 
     .metric-card {
-        background: white;
-        padding: 1.5rem;
-        border-radius: 12px;
+        background: #f8fafc;
+        padding: 1rem;
+        border-radius: 8px;
         text-align: center;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         border: 1px solid #e5e7eb;
-        min-width: 120px;
     }
 
     .metric-number {
-        font-size: 2rem;
+        font-size: 1.8rem;
         font-weight: 700;
         color: #1f2937;
     }
 
     .metric-label {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         color: #6b7280;
-        margin-top: 0.5rem;
+        margin-top: 0.25rem;
     }
 
-    /* Alert'ler */
-    .success-alert {
-        background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-        border: 1px solid #22c55e;
-        color: #15803d;
+    .metric-detail {
+        font-size: 0.7rem;
+        color: #9ca3af;
+        margin-top: 0.25rem;
+    }
+
+    /* Alertler */
+    .alert {
         padding: 1rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-    }
-
-    .info-alert {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-        border: 1px solid #3b82f6;
-        color: #1d4ed8;
-        padding: 1rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-    }
-
-    .error-alert {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-        border: 1px solid #ef4444;
-        color: #dc2626;
-        padding: 1rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-    }
-
-    /* File type badge */
-    .file-type-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
         border-radius: 8px;
-        font-size: 0.875rem;
-        font-weight: 500;
-        margin-left: 0.5rem;
-    }
-
-    .file-type-csv {
-        background: #dcfce7;
-        color: #15803d;
-        border: 1px solid #22c55e;
-    }
-
-    .file-type-excel {
-        background: #dbeafe;
-        color: #1d4ed8;
-        border: 1px solid #3b82f6;
-    }
-
-    /* Download buttons */
-    .download-buttons {
-        display: flex;
-        gap: 1rem;
         margin: 1rem 0;
+        border-left: 4px solid;
     }
 
-    .download-buttons .stDownloadButton > button {
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        transition: all 0.3s ease;
+    .alert-success {
+        background: rgba(34, 197, 94, 0.1);
+        border-left-color: #22c55e;
+        color: #1f2937;
     }
 
-    .download-csv {
-        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-        color: white;
+    .alert-info {
+        background: rgba(59, 130, 246, 0.1);
+        border-left-color: #3b82f6;
+        color: #1f2937;
     }
 
-    .download-excel {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
-    }
-
-    .download-json {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: white;
+    .alert-error {
+        background: rgba(239, 68, 68, 0.1);
+        border-left-color: #ef4444;
+        color: #1f2937;
     }
 
     /* Progress bar */
     .stProgress > div > div > div > div {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 6px;
-    }
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
-        background: #f8fafc;
-        padding: 0.5rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-    }
-
-    .stTabs [data-baseweb="tab-list"] button {
-        border-radius: 8px;
-        padding: 0.5rem 1.5rem;
-        font-weight: 600;
-    }
-
-    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
     }
 
     /* File uploader */
-    .stFileUploader > div > button {
-        border: 2px dashed #667eea;
-        border-radius: 12px;
-        padding: 2rem;
-        background: #f8fafc;
+    [data-testid="stFileUploader"] > div > button {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        background: #f9fafb;
         color: #374151;
-        font-weight: 600;
+        padding: 2rem;
+    }
+
+    /* Radio buttons - Basit ve temiz yaklaşım */
+    .stRadio {
+        display: flex;
+        justify-content: center;
+        margin: 1.5rem 0;
+    }
+
+    .stRadio > div {
+        display: flex !important;
+        justify-content: center !important;
+        gap: 1rem !important;
+        padding: 1rem !important;
+        background: #f8fafc !important;
+        border-radius: 12px !important;
+        border: 1px solid #e5e7eb !important;
+        flex-direction: row !important;
+    }
+
+    .stRadio label {
+        background: #ffffff !important;
+        padding: 0.75rem 1.5rem !important;
+        border-radius: 8px !important;
+        border: 1px solid #d1d5db !important;
+        cursor: pointer !important;
+        transition: all 0.3s ease !important;
+        font-weight: 500 !important;
+        color: #1f2937 !important;
+        min-width: 140px !important;
+        text-align: center !important;
+        font-size: 1rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .stRadio label:hover {
+        border-color: #667eea !important;
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.1) !important;
+        transform: translateY(-1px) !important;
+    }
+
+    .stRadio input[type="radio"]:checked + label,
+    .stRadio label[data-checked="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border-color: #667eea !important;
+    }
+
+    .stRadio input[type="radio"] {
+        display: none !important;
+    }
+
+    /* JavaScript ile temizlenecek elementler için işaretleme */
+    .stRadio label:empty,
+    .stRadio label:not(:has(div:not(:empty))):not(:has(span:not(:empty))):not(:has(input)) {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
+</style>
+
+<script>
+// DOM temizliği için JavaScript
+function cleanupEmptyElements() {
+    // Radio group içindeki boş label'ları bul ve kaldır
+    const radioGroups = document.querySelectorAll('.stRadio > div');
+    radioGroups.forEach(group => {
+        const labels = group.querySelectorAll('label');
+        labels.forEach(label => {
+            // Boş label'ları kontrol et
+            const hasContent = label.querySelector('div:not(:empty)') || 
+                             label.querySelector('span:not(:empty)') || 
+                             label.querySelector('input') ||
+                             label.textContent.trim().length > 0;
+
+            if (!hasContent) {
+                label.style.display = 'none';
+                label.style.visibility = 'hidden';
+                label.style.position = 'absolute';
+                label.style.left = '-9999px';
+                label.style.width = '0';
+                label.style.height = '0';
+                label.style.margin = '0';
+                label.style.padding = '0';
+                label.remove(); // Tamamen kaldır
+            }
+        });
+    });
+
+    // Boş tooltip'leri temizle
+    const tooltipLabels = document.querySelectorAll('label.st-emotion-cache-1whk732');
+    tooltipLabels.forEach(label => {
+        const hasRealContent = label.querySelector('input') || 
+                              label.querySelector('span:not(:empty)') ||
+                              (label.textContent && label.textContent.trim().length > 0);
+
+        if (!hasRealContent) {
+            label.remove();
+        }
+    });
+}
+
+// Sayfa yüklendiğinde çalıştır
+document.addEventListener('DOMContentLoaded', cleanupEmptyElements);
+
+// Streamlit güncellemelerinden sonra çalıştır
+const observer = new MutationObserver(cleanupEmptyElements);
+observer.observe(document.body, { childList: true, subtree: true });
+
+// Periyodik temizlik (son çare)
+setInterval(cleanupEmptyElements, 1000);
+</script>
+
+<style>
+
+    /* Text içinde ki div'ler için */
+    .stRadio label div {
+        color: inherit !important;
+        font-weight: inherit !important;
+        font-size: inherit !important;
+    }
+
+    /* Boş elementleri gizle - En agresif yaklaşım */
+    label:empty,
+    div:empty:not([class*="stProgress"]):not([class*="stSpinner"]):not([data-testid*="stEmpty"]) {
+        display: none !important;
+        height: 0 !important;
+        width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        opacity: 0 !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
+
+    /* Radio group içindeki boş label'lar - çok spesifik */
+    .stRadio > div > label:empty,
+    .stRadio > div > label:not(:has(*)),
+    .stRadio > div > label:not(:has(div:not(:empty))):not(:has(span:not(:empty))):not(:has(input)),
+    .stRadio label:first-child:empty,
+    .stRadio label:first-child:not(:has(input)):not(:has(span)):not(:has(div:not(:empty))) {
+        display: none !important;
+        visibility: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+        height: 0 !important;
+        width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        opacity: 0 !important;
+        z-index: -1000 !important;
+    }
+
+    /* Streamlit radio container temizliği */
+    .stRadio > div > *:empty {
+        display: none !important;
+    }
+
+    /* Streamlit'in oluşturduğu boş label'lar - daha spesifik */
+    .st-emotion-cache-1whk732:empty,
+    label.st-emotion-cache-1whk732:empty,
+    label.st-emotion-cache-1whk732:not(:has(input)):not(:has(span:not(:empty))):not(:has(div:not(.stTooltipIcon))) {
+        display: none !important;
+        visibility: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+    }
+
+    /* Sadece tooltip icon'lu boş label'lar - en spesifik */
+    label:has(.stTooltipIcon):not(:has(input)):not(:has(span:not(:empty))):not(:has(div:not(.stTooltipIcon))):not(:has(div:not(.stTooltipHoverTarget))) {
+        display: none !important;
+        visibility: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Tooltip icon'un kendisini gizle */
+    .stTooltipIcon:only-child,
+    .stTooltipHoverTarget:only-child {
+        display: none !important;
+    }
+
+    /* Boş tooltip container'ları */
+    label:has(.stTooltipIcon):not(:has(:not(.stTooltipIcon):not(.stTooltipHoverTarget))) {
+        display: none !important;
+    }
+
+    /* Radio group temizliği */
+    .stRadio label:empty,
+    .stRadio > div > label:empty,
+    .stRadio > div > label:not(:has(div:not(:empty))) {
+        display: none !important;
+    }
+
+    /* Boş card'ları temizle */
+    .card:empty,
+    div.card:empty {
+        display: none !important;
+        height: 0 !important;
+    }
+
+    /* Expander */
+    .streamlit-expander {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f8fafc;
     }
 
     /* Footer */
     .footer {
         text-align: center;
-        padding: 3rem 1rem;
-        margin-top: 4rem;
+        padding: 2rem 1rem;
+        margin-top: 3rem;
         border-top: 1px solid #e5e7eb;
         background: #f8fafc;
-    }
-
-    .footer-text {
         color: #6b7280;
         font-size: 0.9rem;
-        margin-bottom: 0.5rem;
     }
 
     .footer-heart {
@@ -300,9 +499,8 @@ st.markdown("""
     }
 
     @keyframes heartbeat {
-        0% { transform: scale(1); }
+        0%, 100% { transform: scale(1); }
         50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
     }
 
     /* Responsive */
@@ -315,180 +513,129 @@ st.markdown("""
             padding: 1rem;
         }
 
-        .metric-container {
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .download-buttons {
-            flex-direction: column;
+        .metric-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 </style>
 """, unsafe_allow_html=True)
 
 
-def get_api_key():
-    """API key'i environment veya secrets'tan al"""
-    # Önce environment variable'ı kontrol et
-    env_key = os.getenv('GOOGLE_API_KEY', '')
-    if env_key:
-        return env_key
+def get_secure_api_key():
+    """Güvenli API key yönetimi"""
+    # 1. Environment variable
+    env_key = os.getenv('GOOGLE_API_KEY')
+    if env_key and env_key.strip():
+        return env_key.strip()
 
-    # Sonra Streamlit secrets'ı kontrol et (güvenli şekilde)
+    # 2. Streamlit secrets
     try:
-        if hasattr(st, 'secrets') and st.secrets and 'GOOGLE_API_KEY' in st.secrets:
+        if hasattr(st, 'secrets') and 'GOOGLE_API_KEY' in st.secrets:
             return st.secrets['GOOGLE_API_KEY']
-    except Exception:
-        # Secrets bulunamadı, sorun değil
+    except:
         pass
 
-    # Son olarak .env dosyasını kontrol et
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-        return os.getenv('GOOGLE_API_KEY', '')
-    except ImportError:
-        # python-dotenv yüklü değil
-        pass
+    # 3. .env dosyası
+    env_file = Path('.env')
+    if env_file.exists():
+        try:
+            with open(env_file, 'r') as f:
+                for line in f:
+                    if line.startswith('GOOGLE_API_KEY='):
+                        return line.split('=', 1)[1].strip().strip('"\'')
+        except:
+            pass
 
-    # Hiçbiri bulunamadı, boş string döndür
-    return ''
+    return None
 
 
 def read_file(uploaded_file):
-    """
-    CSV veya Excel dosyasını oku
-
-    Args:
-        uploaded_file: Streamlit file uploader nesnesi
-
-    Returns:
-        pandas DataFrame
-    """
+    """CSV/Excel dosyası oku"""
     try:
-        # Dosya türünü belirle
-        file_extension = uploaded_file.name.lower().split('.')[-1]
+        file_ext = uploaded_file.name.lower().split('.')[-1]
 
-        if file_extension == 'csv':
-            # CSV dosyası
+        if file_ext == 'csv':
             df = pd.read_csv(uploaded_file, encoding='utf-8')
-        elif file_extension in ['xlsx', 'xls']:
-            # Excel dosyası
-            df = pd.read_excel(uploaded_file, engine='openpyxl' if file_extension == 'xlsx' else 'xlrd')
+        elif file_ext in ['xlsx', 'xls']:
+            df = pd.read_excel(uploaded_file)
         else:
-            raise ValueError(f"Desteklenmeyen dosya formatı: {file_extension}")
+            raise ValueError(f"Desteklenmeyen format: {file_ext}")
 
-        # Sütun isimlerini temizle
+        # Temizlik
         df.columns = df.columns.str.strip()
-
-        # Boş satırları temizle
         df = df.dropna(subset=['TEXT'])
         df = df[df['TEXT'].str.strip() != '']
 
-        return df, file_extension
-
+        return df, file_ext
     except Exception as e:
         raise Exception(f"Dosya okuma hatası: {str(e)}")
 
 
-def create_excel_file(df):
-    """
-    DataFrame'i Excel formatında in-memory dosya olarak oluştur
-
-    Args:
-        df: pandas DataFrame
-
-    Returns:
-        bytes: Excel dosyası bytes
-    """
+def create_excel_output(df):
+    """Excel çıktısı oluştur"""
     output = io.BytesIO()
 
-    with pd.ExcelWriter(output, engine='openpyxl', mode='wb') as writer:
-        # Ana sonuçlar sayfası
-        df.to_excel(writer, sheet_name='Analiz Sonuçları', index=False)
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Ana sonuçlar
+        df.to_excel(writer, sheet_name='Sonuçlar', index=False)
 
-        # Özet istatistikler sayfası
+        # Özet istatistikler
         leaders = ['RTE', 'ÖÖ', 'MY', 'EI']
-        leader_names = ['R.T. Erdoğan', 'Ö. Özel', 'M. Yavaş', 'E. İmamoğlu']
+        names = ['R.T. Erdoğan', 'Ö. Özel', 'M. Yavaş', 'E. İmamoğlu']
 
-        summary_data = []
-        for leader_code, leader_name in zip(leaders, leader_names):
-            mentions = len(df[df[f'IS_{leader_code}'] == 1])
-
+        summary = []
+        for leader, name in zip(leaders, names):
+            mentions = len(df[df[f'IS_{leader}'] == 1])
             if mentions > 0:
-                sentiments = df[df[f'IS_{leader_code}'] == 1][f'{leader_code}_SENTIMENT']
-                positive = len(sentiments[sentiments == 1])
-                negative = len(sentiments[sentiments == -1])
-                neutral = len(sentiments[sentiments == 0])
+                sentiments = df[df[f'IS_{leader}'] == 1][f'{leader}_SENTIMENT']
+                pos = len(sentiments[sentiments == 1])
+                neg = len(sentiments[sentiments == -1])
+                neu = len(sentiments[sentiments == 0])
 
-                summary_data.append({
-                    'Lider': leader_name,
-                    'Kod': leader_code,
-                    'Toplam Bahsetme': mentions,
-                    'Pozitif': positive,
-                    'Nötr': neutral,
-                    'Negatif': negative,
-                    'Pozitif %': round((positive / mentions) * 100, 1) if mentions > 0 else 0,
-                    'Negatif %': round((negative / mentions) * 100, 1) if mentions > 0 else 0
-                })
-            else:
-                summary_data.append({
-                    'Lider': leader_name,
-                    'Kod': leader_code,
-                    'Toplam Bahsetme': 0,
-                    'Pozitif': 0,
-                    'Nötr': 0,
-                    'Negatif': 0,
-                    'Pozitif %': 0,
-                    'Negatif %': 0
+                summary.append({
+                    'Lider': name,
+                    'Bahsetme': mentions,
+                    'Pozitif': pos,
+                    'Nötr': neu,
+                    'Negatif': neg,
+                    'Pozitif %': round(pos / mentions * 100, 1) if mentions > 0 else 0
                 })
 
-        summary_df = pd.DataFrame(summary_data)
-        summary_df.to_excel(writer, sheet_name='Özet İstatistikler', index=False)
-
-        # Metadata sayfası
-        metadata = {
-            'Analiz Tarihi': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
-            'Toplam Kayıt': [len(df)],
-            'Sistem Versiyonu': ['2.0'],
-            'AI Model': ['Google Gemini 1.5 Flash']
-        }
-        metadata_df = pd.DataFrame(metadata)
-        metadata_df.to_excel(writer, sheet_name='Metadata', index=False)
+        if summary:
+            pd.DataFrame(summary).to_excel(writer, sheet_name='Özet', index=False)
 
     return output.getvalue()
 
 
-def render_leader_result(leader_code, leader_name, result):
-    """Lider sonucunu kart olarak render et"""
+def render_leader_card(leader_code, leader_name, result):
+    """Lider sonuç kartı"""
     is_relevant = result.get(f'IS_{leader_code}', 0)
     sentiment = result.get(f'{leader_code}_SENTIMENT', 0)
 
-    # Kart class'ını belirle
-    card_class = "leader-card"
-    icon = "➖"
-    status = "İlgisiz"
-
+    # Durum belirleme
     if is_relevant == 1:
-        card_class += " relevant"
         if sentiment == 1:
-            card_class += " positive"
+            css_class = "positive"
             icon = "😊"
             status = "Pozitif"
         elif sentiment == -1:
-            card_class += " negative"
+            css_class = "negative"
             icon = "😠"
             status = "Negatif"
         else:
+            css_class = "relevant"
             icon = "😐"
             status = "Nötr"
+    else:
+        css_class = "neutral"
+        icon = "➖"
+        status = "İlgisiz"
 
     st.markdown(f"""
-    <div class="{card_class}">
-        <div style="font-size: 2rem; margin-bottom: 0.5rem;">{icon}</div>
-        <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;">{leader_name}</div>
-        <div style="color: #6b7280; font-size: 0.9rem;">{status}</div>
+    <div class="leader-result {css_class}">
+        <div class="leader-icon">{icon}</div>
+        <div class="leader-name">{leader_name}</div>
+        <div class="leader-status">{status}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -499,73 +646,82 @@ def main():
     # Başlık
     st.markdown("""
     <div class="main-header">
-        <h1 class="main-title">🇹🇷 Siyasi Lider Analiz Sistemi</h1>
-        <p class="main-subtitle">AI destekli otomatik sınıflandırma ve sentiment analizi</p>
-        <p style="color: #6b7280; font-size: 0.9rem; margin-top: 0.5rem;">
-            📄 CSV ve 📊 Excel desteği ile
-        </p>
+        <h1 class="main-title">🇹🇷 Siyasi Analiz Sistemi</h1>
+        <p class="subtitle">AI destekli otomatik lider sınıflandırma ve sentiment analizi</p>
+        <p class="developer-credit">Baran Can Ercan tarafından geliştirilmiştir.</p>
     </div>
     """, unsafe_allow_html=True)
 
-    # API Key kontrolü
-    api_key = get_api_key()
+    # Güvenli API key yönetimi
+    api_key = get_secure_api_key()
 
     if not api_key:
         st.markdown("""
-        <div class="error-alert">
-            <strong>⚠️ API Anahtarı Gerekli</strong><br>
-            Lütfen Google Gemini API anahtarınızı girin veya environment/secrets'ta ayarlayın.
+        <div class="alert alert-error">
+            <strong>🔑 API Anahtarı Gerekli</strong><br>
+            Lütfen Google Gemini API anahtarınızı .env dosyasına veya environment variables'a ekleyin.
         </div>
         """, unsafe_allow_html=True)
 
-        api_key = st.text_input(
-            "Google API Key:",
-            type="password",
-            placeholder="AIzaSyAWOHLAA4dj9lNfNGB8oScs-c2aHrjFnsE"
-        )
+        with st.expander("🔧 API Key Nasıl Ayarlanır?"):
+            st.code('''
+# .env dosyası oluşturun ve şunu ekleyin:
+GOOGLE_API_KEY=your_api_key_here
 
-        if not api_key:
-            st.stop()
+# Veya environment variable olarak:
+export GOOGLE_API_KEY="your_api_key_here"
+            ''', language='bash')
 
-    # Lider bilgileri
-    leaders_info = {
-        'RTE': 'Recep Tayyip Erdoğan',
-        'ÖÖ': 'Özgür Özel',
-        'MY': 'Mansur Yavaş',
-        'EI': 'Ekrem İmamoğlu'
+        # Geçici API key girişi
+        temp_key = st.text_input("Geçici API Key:", type="password",
+                                 help="Güvenlik için .env dosyası kullanımı önerilir")
+        if temp_key:
+            api_key = temp_key
+
+    if not api_key:
+        st.stop()
+
+    # Lider tanımları
+    leaders = {
+        'RTE': 'R.T. Erdoğan',
+        'ÖÖ': 'Ö. Özel',
+        'MY': 'M. Yavaş',
+        'EI': 'E. İmamoğlu'
     }
 
-    # Ana tab'lar
-    tab1, tab2 = st.tabs(["🧪 Tek İçerik Testi", "📊 Toplu Analiz"])
+    # İşlem modu seçimi
+    st.markdown("### İşlem Türü Seçin:")
+    mode = st.radio(
+        "",
+        ["🧪 Tek İçerik", "📊 Toplu Analiz"],
+        horizontal=True,
+        help="Tek içerik testi veya CSV/Excel dosyası analizi",
+        key="mode_selection"
+    )
 
-    # Tab 1: Tek İçerik Testi
-    with tab1:
+    st.divider()
+
+    # Tek İçerik Analizi
+    if mode == "🧪 Tek İçerik":
         st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        st.markdown("### 🧪 Tek İçerik Analizi")
-        st.markdown("Sosyal medya içeriğinizi test edin ve anlık sonuç alın.")
-
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            test_account = st.text_input(
-                "Hesap Adı:",
-                value="@test_user",
-                placeholder="@ornek_hesap"
-            )
-
-        test_text = st.text_area(
-            "İçerik Metni:",
-            value="Mansur Yavaş'la harika bir proje yaptık! Desteklerinden dolayı teşekkürler.",
+        content = st.text_area(
+            "İçerik:",
+            "Mansur Yavaş'la harika bir proje yaptık! Teşekkürler.",
             height=120,
-            placeholder="Analiz edilecek sosyal medya içeriğini buraya yazın..."
+            help="Analiz edilecek sosyal medya içeriği"
         )
 
-        # Analiz butonu
-        if st.button("🚀 Analiz Et", key="single_analyze"):
-            if not test_text.strip():
-                st.error("❌ Lütfen analiz edilecek içeriği girin!")
+        # Opsiyonel hesap adı
+        with st.expander("⚙️ Gelişmiş Ayarlar (Opsiyonel)"):
+            account = st.text_input("Hesap Adı:", placeholder="@ornek_hesap",
+                                    help="Opsiyonel - varsayılan: @anonymous")
+
+        if st.button("🚀 Analiz Et"):
+            if not content.strip():
+                st.error("❌ İçerik gerekli!")
             else:
-                with st.spinner("🔄 Analiz yapılıyor..."):
+                with st.spinner("Analiz yapılıyor..."):
                     try:
                         analyzer = PoliticalAnalysisSystem(
                             api_key,
@@ -574,346 +730,226 @@ def main():
                             rate_limit_sec=1.5
                         )
 
-                        result = analyzer.process_single_content(test_account, test_text)
+                        result = analyzer.process_single_content(
+                            account.strip() if account.strip() else "@anonymous",
+                            content
+                        )
 
                         if result:
                             st.markdown("""
-                            <div class="success-alert">
-                                <strong>✅ Analiz tamamlandı!</strong>
+                            <div class="alert alert-success">
+                                ✅ <strong>Analiz tamamlandı!</strong>
                             </div>
                             """, unsafe_allow_html=True)
 
                             # Sonuçları göster
-                            st.markdown("#### 📊 Analiz Sonuçları")
-
                             cols = st.columns(4)
-                            for i, (leader_code, leader_name) in enumerate(leaders_info.items()):
+                            for i, (code, name) in enumerate(leaders.items()):
                                 with cols[i]:
-                                    render_leader_result(leader_code, leader_name, result)
+                                    render_leader_card(code, name, result)
                         else:
-                            st.error("❌ Analiz başarısız! Lütfen tekrar deneyin.")
+                            st.error("❌ Analiz başarısız!")
 
                     except Exception as e:
-                        st.error(f"❌ Hata oluştu: {str(e)}")
+                        st.error(f"❌ Hata: {str(e)}")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Tab 2: Toplu Analiz
-    with tab2:
+    # Toplu Analiz
+    else:
         st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        st.markdown("### 📊 Toplu Dosya Analizi")
-        st.markdown("CSV veya Excel dosyalarınızı yükleyip toplu analiz yapın.")
-
-        # Dosya yükleme
         uploaded_file = st.file_uploader(
-            "Dosya Seçin:",
+            "📁 Dosya Yükle:",
             type=['csv', 'xlsx', 'xls'],
-            help="ACCOUNT_NAME ve TEXT sütunları içeren CSV veya Excel dosyası"
+            help="ACCOUNT_NAME ve TEXT sütunları gerekli"
         )
 
-        if uploaded_file is not None:
+        if uploaded_file:
             try:
                 df, file_type = read_file(uploaded_file)
 
-                # Dosya türü badge'i
-                badge_class = "file-type-csv" if file_type == 'csv' else "file-type-excel"
-                badge_text = "CSV" if file_type == 'csv' else "Excel"
-                badge_icon = "📄" if file_type == 'csv' else "📊"
-
                 st.markdown(f"""
-                <div class="info-alert">
-                    <strong>{badge_icon} Dosya Yüklendi:</strong> {len(df):,} kayıt bulundu
-                    <span class="file-type-badge {badge_class}">{badge_text}</span>
+                <div class="alert alert-info">
+                    📄 <strong>{len(df):,} kayıt yüklendi</strong>
+                    <span style="float: right;">Format: {file_type.upper()}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
                 # Sütun kontrolü
-                required_cols = ['ACCOUNT_NAME', 'TEXT']
-                missing_cols = [col for col in required_cols if col not in df.columns]
+                required = ['ACCOUNT_NAME', 'TEXT']
+                missing = [col for col in required if col not in df.columns]
 
-                if missing_cols:
-                    st.markdown(f"""
-                    <div class="error-alert">
-                        <strong>❌ Eksik Sütunlar:</strong> {', '.join(missing_cols)}<br>
-                        <small>Dosyanızda şu sütunlar bulunmalı: ACCOUNT_NAME, TEXT</small>
-                    </div>
-                    """, unsafe_allow_html=True)
+                if missing:
+                    st.error(f"❌ Eksik sütunlar: {', '.join(missing)}")
                 else:
-                    # Veri önizleme
+                    # Önizleme
                     with st.expander("👀 Veri Önizleme"):
-                        st.dataframe(df.head(10), use_container_width=True)
+                        st.dataframe(df.head(5), use_container_width=True)
 
                     # Ayarlar
-                    col1, col2, col3 = st.columns(3)
+                    col1, col2 = st.columns(2)
                     with col1:
-                        batch_size = st.selectbox("Batch Boyutu:", [1, 3, 5, 10], index=1)
+                        batch_size = st.selectbox("Batch Boyutu:", [1, 3, 5], index=1)
                     with col2:
-                        max_workers = st.selectbox("Paralel İşlem:", [1, 2, 3], index=1)
-                    with col3:
-                        rate_limit = st.selectbox("Rate Limit (s):", [1.0, 1.5, 2.0, 3.0], index=1)
+                        rate_limit = st.selectbox("Hız Limiti (s):", [1.0, 1.5, 2.0], index=1)
 
                     # Analiz butonu
-                    if st.button("🚀 Toplu Analizi Başlat", key="batch_analyze"):
-                        # Progress tracking
-                        progress_container = st.container()
+                    if st.button("🚀 Analizi Başlat"):
+                        progress_bar = st.progress(0)
+                        status_text = st.empty()
 
-                        with progress_container:
-                            progress_bar = st.progress(0)
-                            status_text = st.empty()
+                        try:
+                            analyzer = PoliticalAnalysisSystem(
+                                api_key,
+                                batch_size=batch_size,
+                                max_workers=2,
+                                rate_limit_sec=rate_limit
+                            )
 
-                            try:
-                                analyzer = PoliticalAnalysisSystem(
-                                    api_key,
-                                    batch_size=batch_size,
-                                    max_workers=max_workers,
-                                    rate_limit_sec=rate_limit
-                                )
+                            data_records = df.to_dict('records')
+                            results = []
+                            total = len(data_records)
 
-                                data_records = df.to_dict('records')
-                                results = []
-                                total_items = len(data_records)
+                            # Batch işleme
+                            for i in range(0, total, batch_size):
+                                batch = data_records[i:i + batch_size]
+                                current_end = min(i + batch_size, total)
 
-                                # Batch'ler halinde işle
-                                for i in range(0, total_items, batch_size):
-                                    batch = data_records[i:i + batch_size]
-                                    current_end = min(i + batch_size, total_items)
+                                status_text.text(f"İşleniyor: {i + 1}-{current_end}/{total}")
 
-                                    status_text.text(f"İşleniyor: {i + 1}-{current_end}/{total_items}")
+                                batch_results = analyzer.process_batch_parallel(batch)
+                                results.extend(batch_results)
 
-                                    batch_results = analyzer.process_batch_parallel(batch)
-                                    results.extend(batch_results)
+                                progress_bar.progress(current_end / total)
 
-                                    progress = current_end / total_items
-                                    progress_bar.progress(progress)
+                            # Sonuçları kaydet
+                            st.session_state.results = results
+                            st.session_state.results_df = pd.DataFrame(results)
 
-                                    time.sleep(0.1)  # UI güncelleme için
+                            status_text.success("✅ Analiz tamamlandı!")
+                            time.sleep(1)
+                            st.rerun()
 
-                                # Sonuçları session state'e kaydet
-                                st.session_state.analysis_results = results
-                                st.session_state.analysis_df = pd.DataFrame(results)
-
-                                status_text.success("✅ Analiz tamamlandı!")
-                                time.sleep(1)
-
-                                # Sonuç sayfasına yönlendir
-                                st.rerun()
-
-                            except Exception as e:
-                                st.error(f"❌ Analiz hatası: {str(e)}")
+                        except Exception as e:
+                            st.error(f"❌ Analiz hatası: {str(e)}")
 
             except Exception as e:
-                st.error(f"❌ Dosya okuma hatası: {str(e)}")
+                st.error(f"❌ Dosya hatası: {str(e)}")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Sonuçları göster (eğer varsa)
-        if 'analysis_results' in st.session_state:
-            results = st.session_state.analysis_results
+        # Sonuçları göster
+        if 'results' in st.session_state and st.session_state.results:
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.subheader("📊 Sonuçlar")
 
-            if results:
-                st.markdown('<div class="card">', unsafe_allow_html=True)
-                st.markdown("### 📈 Analiz Sonuçları")
+            results = st.session_state.results
 
-                # Özet metrikler
-                total_processed = len(results)
+            # Özet metrikler
+            st.markdown('<div class="metric-grid">', unsafe_allow_html=True)
 
-                # Lider istatistikleri
-                leader_stats = {}
-                for leader_code in leaders_info.keys():
-                    mentions = sum(1 for r in results if r.get(f'IS_{leader_code}') == 1)
+            for code, name in leaders.items():
+                mentions = sum(1 for r in results if r.get(f'IS_{code}') == 1)
 
-                    sentiments = [r.get(f'{leader_code}_SENTIMENT', 0)
-                                  for r in results if r.get(f'IS_{leader_code}') == 1]
+                if mentions > 0:
+                    sentiments = [r.get(f'{code}_SENTIMENT', 0)
+                                  for r in results if r.get(f'IS_{code}') == 1]
+                    pos = sum(1 for s in sentiments if s == 1)
+                    neg = sum(1 for s in sentiments if s == -1)
 
-                    positive = sum(1 for s in sentiments if s == 1)
-                    negative = sum(1 for s in sentiments if s == -1)
-                    neutral = sum(1 for s in sentiments if s == 0)
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-number">{mentions}</div>
+                        <div class="metric-label">{name}</div>
+                        <div class="metric-detail">+{pos} -{neg}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div class="metric-number">0</div>
+                        <div class="metric-label">{name}</div>
+                        <div class="metric-detail">Bahsetme yok</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                    leader_stats[leader_code] = {
-                        'name': leaders_info[leader_code],
-                        'mentions': mentions,
-                        'positive': positive,
-                        'negative': negative,
-                        'neutral': neutral
-                    }
+            st.markdown('</div>', unsafe_allow_html=True)
 
-                # Metrik kartları
-                cols = st.columns(4)
-                for i, (leader_code, stats) in enumerate(leader_stats.items()):
-                    with cols[i]:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div class="metric-number">{stats['mentions']}</div>
-                            <div class="metric-label">{stats['name']}</div>
-                            <div style="font-size: 0.8rem; color: #9ca3af; margin-top: 0.25rem;">
-                                +{stats['positive']} -{stats['negative']} ={stats['neutral']}
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+            # Görsel analiz
+            mention_counts = [sum(1 for r in results if r.get(f'IS_{code}') == 1)
+                              for code in leaders.keys()]
 
-                # Görselleştirme
-                if any(stats['mentions'] > 0 for stats in leader_stats.values()):
-                    st.markdown("#### 📊 Görsel Analiz")
+            if any(count > 0 for count in mention_counts):
+                fig = px.bar(
+                    x=list(leaders.values()),
+                    y=mention_counts,
+                    title="Lider Bahsetme Sayıları",
+                    color=mention_counts,
+                    color_continuous_scale="viridis"
+                )
+                fig.update_layout(
+                    title_font_size=16,
+                    showlegend=False,
+                    height=400
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
-                    # Bahsetme grafiği
-                    mentions_data = [stats['mentions'] for stats in leader_stats.values()]
-                    leader_names = [stats['name'] for stats in leader_stats.values()]
+            # İndirme seçenekleri
+            st.subheader("💾 İndir")
 
-                    fig = px.bar(
-                        x=leader_names,
-                        y=mentions_data,
-                        title="Lider Bahsetme Sayıları",
-                        color=mentions_data,
-                        color_continuous_scale="viridis"
-                    )
-                    fig.update_layout(
-                        title_font_size=16,
-                        xaxis_title="Liderler",
-                        yaxis_title="Bahsetme Sayısı",
-                        showlegend=False
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
+            df_results = st.session_state.results_df
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 
-                # İndirme bölümü
-                st.markdown("#### 💾 Sonuçları İndir")
-                st.markdown("Analiz sonuçlarınızı farklı formatlarda indirebilirsiniz:")
+            col1, col2 = st.columns(2)
 
-                results_df = st.session_state.analysis_df
+            with col1:
+                csv_data = df_results.to_csv(index=False, encoding='utf-8')
+                st.download_button(
+                    "📄 CSV İndir",
+                    csv_data,
+                    f"analiz_{timestamp}.csv",
+                    "text/csv",
+                    use_container_width=True
+                )
 
-                # Dosya adı için timestamp
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            with col2:
+                excel_data = create_excel_output(df_results)
+                st.download_button(
+                    "📊 Excel İndir",
+                    excel_data,
+                    f"analiz_{timestamp}.xlsx",
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
 
-                # CSV data
-                csv_data = results_df.to_csv(index=False, encoding='utf-8')
+            st.markdown('</div>', unsafe_allow_html=True)
 
-                # Excel data
-                excel_data = create_excel_file(results_df)
-
-                # JSON data
-                json_data = json.dumps(results, ensure_ascii=False, indent=2)
-
-                # İndirme butonları
-                col1, col2, col3 = st.columns(3)
-
-                with col1:
-                    st.download_button(
-                        "📄 CSV İndir",
-                        csv_data,
-                        f"siyasi_analiz_{timestamp}.csv",
-                        "text/csv",
-                        use_container_width=True,
-                        help="Virgül ile ayrılmış değer formatı"
-                    )
-
-                with col2:
-                    st.download_button(
-                        "📊 Excel İndir",
-                        excel_data,
-                        f"siyasi_analiz_{timestamp}.xlsx",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True,
-                        help="Excel formatı - 3 sayfa: Sonuçlar, Özet, Metadata"
-                    )
-
-                with col3:
-                    st.download_button(
-                        "📋 JSON İndir",
-                        json_data,
-                        f"siyasi_analiz_{timestamp}.json",
-                        "application/json",
-                        use_container_width=True,
-                        help="JSON formatı - programatik kullanım için"
-                    )
-
-                # İndirme bilgilendirme
-                st.markdown("""
-                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea; margin-top: 1rem;">
-                    <strong>📋 Dosya Format Bilgileri:</strong><br>
-                    • <strong>CSV:</strong> Temel tablo formatı, Excel'de açılabilir<br>
-                    • <strong>Excel:</strong> Çoklu sayfa - Sonuçlar + Özet istatistikler + Metadata<br>
-                    • <strong>JSON:</strong> Programlama ve API entegrasyonu için
-                </div>
-                """, unsafe_allow_html=True)
-
-                st.markdown('</div>', unsafe_allow_html=True)
-
-    # Kullanım rehberi
-    with st.expander("📚 Kullanım Rehberi", expanded=False):
+    # Sistem bilgisi
+    with st.expander("ℹ️ Sistem Bilgisi"):
         st.markdown("""
-        ### 📁 Dosya Formatları
-
-        **Desteklenen Dosya Türleri:**
-        - 📄 **CSV** (Comma Separated Values)
-        - 📊 **Excel** (.xlsx, .xls)
-
-        **Gerekli Sütunlar:**
-        - `ACCOUNT_NAME`: Sosyal medya hesap adı (@username)
-        - `TEXT`: Analiz edilecek içerik metni
-
-        ### 📊 Çıktı Formatları
-
-        **CSV İndirme:**
-        - Basit tablo formatı
-        - Tüm spreadsheet uygulamalarında açılabilir
-        - Programatik işleme uygun
-
-        **Excel İndirme:**
-        - **Sayfa 1:** Detaylı analiz sonuçları
-        - **Sayfa 2:** Özet istatistikler ve yüzdeler
-        - **Sayfa 3:** Metadata (tarih, versiyon, model bilgisi)
-        - Profesyonel raporlama için ideal
-
-        **JSON İndirme:**
-        - API entegrasyonu için
-        - Programlama dillerinde kolay işleme
-        - Veri yapısını korur
-
-        ### 🎯 Lider Kodları
-
+        **Liderler:**
         - **RTE**: Recep Tayyip Erdoğan (Cumhurbaşkanı)
         - **ÖÖ**: Özgür Özel (CHP Genel Başkanı)
         - **MY**: Mansur Yavaş (Ankara Büyükşehir Belediye Başkanı)
         - **EI**: Ekrem İmamoğlu (İstanbul Büyükşehir Belediye Başkanı)
 
-        ### 📈 Değer Anlamları
-
-        **Sınıflandırma (IS_XXX):**
-        - `1`: İçerik bu liderle ilgili
-        - `0`: İçerik bu liderle ilgisiz
-
-        **Sentiment (XXX_SENTIMENT):**
-        - `1`: Pozitif (övgü, destek)
-        - `0`: Nötr (tarafsız bahsetme)
-        - `-1`: Negatif (eleştiri, olumsuz)
-        - `null`: Lider ilgili değilse boş
-
-        ### ⚙️ Performans Ayarları
-
-        - **Batch Boyutu**: Aynı anda işlenecek kayıt sayısı (1-10)
-        - **Paralel İşlem**: Eşzamanlı thread sayısı (1-3)
-        - **Rate Limit**: API çağrıları arası bekleme süresi (1-3 saniye)
-
-        ### 💡 İpuçları
-
-        1. **Küçük testler**: İlk önce 10-50 kayıtlık küçük dosyalarla test edin
-        2. **Excel formatı**: Profesyonel raporlar için Excel indirmeyi tercih edin
-        3. **Batch ayarları**: Büyük dosyalar için batch boyutunu küçük tutun
-        4. **API limitleri**: Rate limit'i düşük tutarak hata riskini azaltın
+        **Değerler:**
+        - **Sınıflandırma**: 1 (İlgili), 0 (İlgisiz)
+        - **Sentiment**: +1 (Pozitif), 0 (Nötr), -1 (Negatif)
         """)
 
     # Footer
     st.markdown("""
     <div class="footer">
-        <div class="footer-text">
-            Baran Can Ercan tarafından <span class="footer-heart">❤️</span> ile yapılmıştır
-        </div>
-        <div style="font-size: 0.8rem; color: #9ca3af;">
-            🇹🇷 Türk Siyasi Lider Analiz Sistemi V2.0 · Google Gemini AI Destekli
-        </div>
-        <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">
-            📄 CSV & 📊 Excel Desteği · 🚀 Yüksek Performans · 🔒 Güvenli
-        </div>
+        <p>
+            Baran Can Ercan tarafından 
+            <span class="footer-heart">❤️</span> 
+            ile yapılmıştır
+        </p>
+        <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.5rem;">
+            🇹🇷 Türk Siyasi Lider Analiz Sistemi V2.0 • 🤖 AI Destekli • 🔒 Güvenli
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
