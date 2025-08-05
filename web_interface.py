@@ -24,7 +24,6 @@ from pathlib import Path
 # Güvenli API key yönetimi
 try:
     from dotenv import load_dotenv
-
     load_dotenv()
 except ImportError:
     pass
@@ -144,7 +143,7 @@ st.markdown("""
         opacity: 0.8;
     }
 
-    /* Butonlar - Dark mode uyumlu */
+    /* Butonlar */
     .stButton > button {
         width: 100%;
         height: 2.8rem;
@@ -177,7 +176,7 @@ st.markdown("""
         box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
     }
 
-    /* Form label'ları siyah yap */
+    /* Form labelları */
     .stTextArea > label,
     .stTextInput > label,
     .stSelectbox > label,
@@ -188,7 +187,6 @@ st.markdown("""
         font-size: 1rem !important;
     }
 
-    /* Form label içindeki div'ler */
     .stTextArea > label > div,
     .stTextInput > label > div,
     .stSelectbox > label > div,
@@ -270,7 +268,7 @@ st.markdown("""
         padding: 2rem;
     }
 
-    /* Radio buttons - Basit ve temiz yaklaşım */
+    /* Radio buttons */
     .stRadio {
         display: flex;
         justify-content: center;
@@ -322,157 +320,10 @@ st.markdown("""
         display: none !important;
     }
 
-    /* JavaScript ile temizlenecek elementler için işaretleme */
-    .stRadio label:empty,
-    .stRadio label:not(:has(div:not(:empty))):not(:has(span:not(:empty))):not(:has(input)) {
-        opacity: 0 !important;
-        pointer-events: none !important;
-        position: absolute !important;
-        left: -9999px !important;
-    }
-</style>
-
-<script>
-// DOM temizliği için JavaScript
-function cleanupEmptyElements() {
-    // Radio group içindeki boş label'ları bul ve kaldır
-    const radioGroups = document.querySelectorAll('.stRadio > div');
-    radioGroups.forEach(group => {
-        const labels = group.querySelectorAll('label');
-        labels.forEach(label => {
-            // Boş label'ları kontrol et
-            const hasContent = label.querySelector('div:not(:empty)') || 
-                             label.querySelector('span:not(:empty)') || 
-                             label.querySelector('input') ||
-                             label.textContent.trim().length > 0;
-
-            if (!hasContent) {
-                label.style.display = 'none';
-                label.style.visibility = 'hidden';
-                label.style.position = 'absolute';
-                label.style.left = '-9999px';
-                label.style.width = '0';
-                label.style.height = '0';
-                label.style.margin = '0';
-                label.style.padding = '0';
-                label.remove(); // Tamamen kaldır
-            }
-        });
-    });
-
-    // Boş tooltip'leri temizle
-    const tooltipLabels = document.querySelectorAll('label.st-emotion-cache-1whk732');
-    tooltipLabels.forEach(label => {
-        const hasRealContent = label.querySelector('input') || 
-                              label.querySelector('span:not(:empty)') ||
-                              (label.textContent && label.textContent.trim().length > 0);
-
-        if (!hasRealContent) {
-            label.remove();
-        }
-    });
-}
-
-// Sayfa yüklendiğinde çalıştır
-document.addEventListener('DOMContentLoaded', cleanupEmptyElements);
-
-// Streamlit güncellemelerinden sonra çalıştır
-const observer = new MutationObserver(cleanupEmptyElements);
-observer.observe(document.body, { childList: true, subtree: true });
-
-// Periyodik temizlik (son çare)
-setInterval(cleanupEmptyElements, 1000);
-</script>
-
-<style>
-
-    /* Text içinde ki div'ler için */
     .stRadio label div {
         color: inherit !important;
         font-weight: inherit !important;
         font-size: inherit !important;
-    }
-
-    /* Boş elementleri gizle - En agresif yaklaşım */
-    label:empty,
-    div:empty:not([class*="stProgress"]):not([class*="stSpinner"]):not([data-testid*="stEmpty"]) {
-        display: none !important;
-        height: 0 !important;
-        width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        opacity: 0 !important;
-        position: absolute !important;
-        left: -9999px !important;
-    }
-
-    /* Radio group içindeki boş label'lar - çok spesifik */
-    .stRadio > div > label:empty,
-    .stRadio > div > label:not(:has(*)),
-    .stRadio > div > label:not(:has(div:not(:empty))):not(:has(span:not(:empty))):not(:has(input)),
-    .stRadio label:first-child:empty,
-    .stRadio label:first-child:not(:has(input)):not(:has(span)):not(:has(div:not(:empty))) {
-        display: none !important;
-        visibility: hidden !important;
-        position: absolute !important;
-        left: -9999px !important;
-        height: 0 !important;
-        width: 0 !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        opacity: 0 !important;
-        z-index: -1000 !important;
-    }
-
-    /* Streamlit radio container temizliği */
-    .stRadio > div > *:empty {
-        display: none !important;
-    }
-
-    /* Streamlit'in oluşturduğu boş label'lar - daha spesifik */
-    .st-emotion-cache-1whk732:empty,
-    label.st-emotion-cache-1whk732:empty,
-    label.st-emotion-cache-1whk732:not(:has(input)):not(:has(span:not(:empty))):not(:has(div:not(.stTooltipIcon))) {
-        display: none !important;
-        visibility: hidden !important;
-        position: absolute !important;
-        left: -9999px !important;
-    }
-
-    /* Sadece tooltip icon'lu boş label'lar - en spesifik */
-    label:has(.stTooltipIcon):not(:has(input)):not(:has(span:not(:empty))):not(:has(div:not(.stTooltipIcon))):not(:has(div:not(.stTooltipHoverTarget))) {
-        display: none !important;
-        visibility: hidden !important;
-        position: absolute !important;
-        left: -9999px !important;
-        height: 0 !important;
-        width: 0 !important;
-        overflow: hidden !important;
-    }
-
-    /* Tooltip icon'un kendisini gizle */
-    .stTooltipIcon:only-child,
-    .stTooltipHoverTarget:only-child {
-        display: none !important;
-    }
-
-    /* Boş tooltip container'ları */
-    label:has(.stTooltipIcon):not(:has(:not(.stTooltipIcon):not(.stTooltipHoverTarget))) {
-        display: none !important;
-    }
-
-    /* Radio group temizliği */
-    .stRadio label:empty,
-    .stRadio > div > label:empty,
-    .stRadio > div > label:not(:has(div:not(:empty))) {
-        display: none !important;
-    }
-
-    /* Boş card'ları temizle */
-    .card:empty,
-    div.card:empty {
-        display: none !important;
-        height: 0 !important;
     }
 
     /* Expander */
@@ -692,11 +543,12 @@ export GOOGLE_API_KEY="your_api_key_here"
     # İşlem modu seçimi
     st.markdown("### İşlem Türü Seçin:")
     mode = st.radio(
-        "",
+        "İşlem Türü:",
         ["🧪 Tek İçerik", "📊 Toplu Analiz"],
         horizontal=True,
         help="Tek içerik testi veya CSV/Excel dosyası analizi",
-        key="mode_selection"
+        key="mode_selection",
+        label_visibility="collapsed"
     )
 
     st.divider()
