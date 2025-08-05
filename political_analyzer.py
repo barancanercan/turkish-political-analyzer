@@ -193,15 +193,15 @@ class PoliticalAnalysisSystem:
 Sen bir Türk siyasi analiz uzmanısın. Aşağıdaki sosyal medya içeriğini ya da haber metnini analiz ederek, bu içeriğin hangi siyasi lideri ilgilendirdiğini belirle.
 
 Liderler:
-- RTE: Recep Tayyip Erdoğan (AK Parti, Cumhurbaşkanı)
-- OO: Özgür Özel (CHP Genel Başkanı)
+- RTE: Recep Tayyip Erdoğan (AK Parti, Cumhurbaşkanı, AKP Genel Başkanı)
+- OO: Özgür Özel (CHP Genel Başkanı, Muhalefet Lideri)
 - MY: Mansur Yavaş (Ankara Büyükşehir Belediye Başkanı, CHP)
 - EI: Ekrem İmamoğlu (İstanbul Büyükşehir Belediye Başkanı, CHP Cumhurbaşkanı Adayı, CHP)
 
 Kurallar:
 1. İçerik bir lideri doğrudan bahsediyorsa, o lidere +1 ver
-2. İçerik bir liderin partisini/görevini bahsediyorsa, o lidere +1 ver
-3. Diğer tüm liderlere 0 ver
+2. İçerik bir liderin görevinden bahsediyorsa, o lidere +1 ver
+3. Diğer tüm liderlere 0 ver.
 4. Eğer hiçbir lider açık şekilde ilgili değilse, hepsine 0 ver
 5. Birden fazla lider ilgiliyse, hepsine +1 ilgisiz olanlara 0 ver.
 
@@ -257,14 +257,15 @@ Sonucu sadece JSON formatında ver:
         prompt = f'''
 Sen bir politik sentiment analiz uzmanısın. 
 
-Aşağıdaki sosyal medya içeriği ya da haberi "{leader_name}" hakkındaki duygusal tonunu analiz et. 
+Aşağıdaki sosyal medya içeriği ya da haberi "{leader_name}" hakkındaki duygusal tonunu "{leader_name}" lidere göre siyasi bir uzman gibi analiz et.
+Bu haber ya da medya içeriği bu liderle ilgili pozitif bir algı mı negatif bir algı mı?
 
 İçerik: "{text}"
 Hesap: "{account_name}"
 
 Sentiment kategorileri:
 - 1: Pozitif (övgü, destek, beğeni)
-- 0: Nötr (tarafsız bahsetme, objektif)
+- 0: Nötr (tarafsız bahsetme, objektif, yalnızca bahsetme)
 - -1: Negatif (eleştiri, saldırı, olumsuz)
 
 Sadece sayısal değeri ver (1, 0, veya -1):

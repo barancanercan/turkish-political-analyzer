@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 Modern Web Arayüzü - Türk Siyasi Lider Analiz Sistemi V2.0
-Deploy Ready Version
+Excel ve CSV Destekli Versiyon
 
 Kurulum:
-pip install streamlit pandas plotly
+pip install streamlit pandas plotly openpyxl
 
 Çalıştırma:
 streamlit run web_interface.py
@@ -192,6 +192,57 @@ st.markdown("""
         margin: 1rem 0;
     }
 
+    /* File type badge */
+    .file-type-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-left: 0.5rem;
+    }
+
+    .file-type-csv {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #22c55e;
+    }
+
+    .file-type-excel {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border: 1px solid #3b82f6;
+    }
+
+    /* Download buttons */
+    .download-buttons {
+        display: flex;
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .download-buttons .stDownloadButton > button {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+
+    .download-csv {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: white;
+    }
+
+    .download-excel {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+    }
+
+    .download-json {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+    }
+
     /* Progress bar */
     .stProgress > div > div > div > div {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -268,6 +319,10 @@ st.markdown("""
             flex-direction: column;
             gap: 1rem;
         }
+
+        .download-buttons {
+            flex-direction: column;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -275,12 +330,134 @@ st.markdown("""
 
 def get_api_key():
     """API key'i environment veya secrets'tan al"""
-    # Streamlit secrets'tan al
-    if hasattr(st, 'secrets') and 'GOOGLE_API_KEY' in st.secrets:
-        return st.secrets['GOOGLE_API_KEY']
+    # Önce environment variable'ı kontrol et
+    env_key = os.getenv('GOOGLE_API_KEY', '')
+    if env_key:
+        return env_key
 
-    # Environment'tan al
-    return os.getenv('GOOGLE_API_KEY', '')
+    # Sonra Streamlit secrets'ı kontrol et (güvenli şekilde)
+    try:
+        if hasattr(st, 'secrets') and st.secrets and 'GOOGLE_API_KEY' in st.secrets:
+            return st.secrets['GOOGLE_API_KEY']
+    except Exception:
+        # Secrets bulunamadı, sorun değil
+        pass
+
+    # Son olarak .env dosyasını kontrol et
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+        return os.getenv('GOOGLE_API_KEY', '')
+    except ImportError:
+        # python-dotenv yüklü değil
+        pass
+
+    # Hiçbiri bulunamadı, boş string döndür
+    return ''
+
+
+def read_file(uploaded_file):
+    """
+    CSV veya Excel dosyasını oku
+
+    Args:
+        uploaded_file: Streamlit file uploader nesnesi
+
+    Returns:
+        pandas DataFrame
+    """
+    try:
+        # Dosya türünü belirle
+        file_extension = uploaded_file.name.lower().split('.')[-1]
+
+        if file_extension == 'csv':
+            # CSV dosyası
+            df = pd.read_csv(uploaded_file, encoding='utf-8')
+        elif file_extension in ['xlsx', 'xls']:
+            # Excel dosyası
+            df = pd.read_excel(uploaded_file, engine='openpyxl' if file_extension == 'xlsx' else 'xlrd')
+        else:
+            raise ValueError(f"Desteklenmeyen dosya formatı: {file_extension}")
+
+        # Sütun isimlerini temizle
+        df.columns = df.columns.str.strip()
+
+        # Boş satırları temizle
+        df = df.dropna(subset=['TEXT'])
+        df = df[df['TEXT'].str.strip() != '']
+
+        return df, file_extension
+
+    except Exception as e:
+        raise Exception(f"Dosya okuma hatası: {str(e)}")
+
+
+def create_excel_file(df):
+    """
+    DataFrame'i Excel formatında in-memory dosya olarak oluştur
+
+    Args:
+        df: pandas DataFrame
+
+    Returns:
+        bytes: Excel dosyası bytes
+    """
+    output = io.BytesIO()
+
+    with pd.ExcelWriter(output, engine='openpyxl', mode='wb') as writer:
+        # Ana sonuçlar sayfası
+        df.to_excel(writer, sheet_name='Analiz Sonuçları', index=False)
+
+        # Özet istatistikler sayfası
+        leaders = ['RTE', 'ÖÖ', 'MY', 'EI']
+        leader_names = ['R.T. Erdoğan', 'Ö. Özel', 'M. Yavaş', 'E. İmamoğlu']
+
+        summary_data = []
+        for leader_code, leader_name in zip(leaders, leader_names):
+            mentions = len(df[df[f'IS_{leader_code}'] == 1])
+
+            if mentions > 0:
+                sentiments = df[df[f'IS_{leader_code}'] == 1][f'{leader_code}_SENTIMENT']
+                positive = len(sentiments[sentiments == 1])
+                negative = len(sentiments[sentiments == -1])
+                neutral = len(sentiments[sentiments == 0])
+
+                summary_data.append({
+                    'Lider': leader_name,
+                    'Kod': leader_code,
+                    'Toplam Bahsetme': mentions,
+                    'Pozitif': positive,
+                    'Nötr': neutral,
+                    'Negatif': negative,
+                    'Pozitif %': round((positive / mentions) * 100, 1) if mentions > 0 else 0,
+                    'Negatif %': round((negative / mentions) * 100, 1) if mentions > 0 else 0
+                })
+            else:
+                summary_data.append({
+                    'Lider': leader_name,
+                    'Kod': leader_code,
+                    'Toplam Bahsetme': 0,
+                    'Pozitif': 0,
+                    'Nötr': 0,
+                    'Negatif': 0,
+                    'Pozitif %': 0,
+                    'Negatif %': 0
+                })
+
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_excel(writer, sheet_name='Özet İstatistikler', index=False)
+
+        # Metadata sayfası
+        metadata = {
+            'Analiz Tarihi': [datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+            'Toplam Kayıt': [len(df)],
+            'Sistem Versiyonu': ['2.0'],
+            'AI Model': ['Google Gemini 1.5 Flash']
+        }
+        metadata_df = pd.DataFrame(metadata)
+        metadata_df.to_excel(writer, sheet_name='Metadata', index=False)
+
+    return output.getvalue()
 
 
 def render_leader_result(leader_code, leader_name, result):
@@ -324,6 +501,9 @@ def main():
     <div class="main-header">
         <h1 class="main-title">🇹🇷 Siyasi Lider Analiz Sistemi</h1>
         <p class="main-subtitle">AI destekli otomatik sınıflandırma ve sentiment analizi</p>
+        <p style="color: #6b7280; font-size: 0.9rem; margin-top: 0.5rem;">
+            📄 CSV ve 📊 Excel desteği ile
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -341,7 +521,7 @@ def main():
         api_key = st.text_input(
             "Google API Key:",
             type="password",
-            placeholder="AIzaSyCklJ6T0IDgjuH7N8fbWl6AQtJuCEGbRA8"
+            placeholder="AIzaSyAWOHLAA4dj9lNfNGB8oScs-c2aHrjFnsE"
         )
 
         if not api_key:
@@ -422,23 +602,29 @@ def main():
     with tab2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
 
-        st.markdown("### 📊 Toplu CSV Analizi")
-        st.markdown("Büyük veri setlerinizi yükleyip toplu analiz yapın.")
+        st.markdown("### 📊 Toplu Dosya Analizi")
+        st.markdown("CSV veya Excel dosyalarınızı yükleyip toplu analiz yapın.")
 
         # Dosya yükleme
         uploaded_file = st.file_uploader(
-            "CSV Dosyası Seçin:",
-            type=['csv'],
-            help="ACCOUNT_NAME ve TEXT sütunları içeren CSV dosyası"
+            "Dosya Seçin:",
+            type=['csv', 'xlsx', 'xls'],
+            help="ACCOUNT_NAME ve TEXT sütunları içeren CSV veya Excel dosyası"
         )
 
         if uploaded_file is not None:
             try:
-                df = pd.read_csv(uploaded_file)
+                df, file_type = read_file(uploaded_file)
+
+                # Dosya türü badge'i
+                badge_class = "file-type-csv" if file_type == 'csv' else "file-type-excel"
+                badge_text = "CSV" if file_type == 'csv' else "Excel"
+                badge_icon = "📄" if file_type == 'csv' else "📊"
 
                 st.markdown(f"""
                 <div class="info-alert">
-                    <strong>📄 Dosya Yüklendi:</strong> {len(df):,} kayıt bulundu
+                    <strong>{badge_icon} Dosya Yüklendi:</strong> {len(df):,} kayıt bulundu
+                    <span class="file-type-badge {badge_class}">{badge_text}</span>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -449,7 +635,8 @@ def main():
                 if missing_cols:
                     st.markdown(f"""
                     <div class="error-alert">
-                        <strong>❌ Eksik Sütunlar:</strong> {', '.join(missing_cols)}
+                        <strong>❌ Eksik Sütunlar:</strong> {', '.join(missing_cols)}<br>
+                        <small>Dosyanızda şu sütunlar bulunmalı: ACCOUNT_NAME, TEXT</small>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
@@ -590,30 +777,130 @@ def main():
 
                 # İndirme bölümü
                 st.markdown("#### 💾 Sonuçları İndir")
+                st.markdown("Analiz sonuçlarınızı farklı formatlarda indirebilirsiniz:")
 
                 results_df = st.session_state.analysis_df
+
+                # Dosya adı için timestamp
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+                # CSV data
                 csv_data = results_df.to_csv(index=False, encoding='utf-8')
 
-                col1, col2 = st.columns([1, 1])
+                # Excel data
+                excel_data = create_excel_file(results_df)
+
+                # JSON data
+                json_data = json.dumps(results, ensure_ascii=False, indent=2)
+
+                # İndirme butonları
+                col1, col2, col3 = st.columns(3)
+
                 with col1:
                     st.download_button(
-                        "📄 CSV Olarak İndir",
+                        "📄 CSV İndir",
                         csv_data,
-                        f"siyasi_analiz_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                        f"siyasi_analiz_{timestamp}.csv",
                         "text/csv",
-                        use_container_width=True
-                    )
-                with col2:
-                    json_data = json.dumps(results, ensure_ascii=False, indent=2)
-                    st.download_button(
-                        "📋 JSON Olarak İndir",
-                        json_data,
-                        f"siyasi_analiz_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                        "application/json",
-                        use_container_width=True
+                        use_container_width=True,
+                        help="Virgül ile ayrılmış değer formatı"
                     )
 
+                with col2:
+                    st.download_button(
+                        "📊 Excel İndir",
+                        excel_data,
+                        f"siyasi_analiz_{timestamp}.xlsx",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True,
+                        help="Excel formatı - 3 sayfa: Sonuçlar, Özet, Metadata"
+                    )
+
+                with col3:
+                    st.download_button(
+                        "📋 JSON İndir",
+                        json_data,
+                        f"siyasi_analiz_{timestamp}.json",
+                        "application/json",
+                        use_container_width=True,
+                        help="JSON formatı - programatik kullanım için"
+                    )
+
+                # İndirme bilgilendirme
+                st.markdown("""
+                <div style="background: #f8fafc; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea; margin-top: 1rem;">
+                    <strong>📋 Dosya Format Bilgileri:</strong><br>
+                    • <strong>CSV:</strong> Temel tablo formatı, Excel'de açılabilir<br>
+                    • <strong>Excel:</strong> Çoklu sayfa - Sonuçlar + Özet istatistikler + Metadata<br>
+                    • <strong>JSON:</strong> Programlama ve API entegrasyonu için
+                </div>
+                """, unsafe_allow_html=True)
+
                 st.markdown('</div>', unsafe_allow_html=True)
+
+    # Kullanım rehberi
+    with st.expander("📚 Kullanım Rehberi", expanded=False):
+        st.markdown("""
+        ### 📁 Dosya Formatları
+
+        **Desteklenen Dosya Türleri:**
+        - 📄 **CSV** (Comma Separated Values)
+        - 📊 **Excel** (.xlsx, .xls)
+
+        **Gerekli Sütunlar:**
+        - `ACCOUNT_NAME`: Sosyal medya hesap adı (@username)
+        - `TEXT`: Analiz edilecek içerik metni
+
+        ### 📊 Çıktı Formatları
+
+        **CSV İndirme:**
+        - Basit tablo formatı
+        - Tüm spreadsheet uygulamalarında açılabilir
+        - Programatik işleme uygun
+
+        **Excel İndirme:**
+        - **Sayfa 1:** Detaylı analiz sonuçları
+        - **Sayfa 2:** Özet istatistikler ve yüzdeler
+        - **Sayfa 3:** Metadata (tarih, versiyon, model bilgisi)
+        - Profesyonel raporlama için ideal
+
+        **JSON İndirme:**
+        - API entegrasyonu için
+        - Programlama dillerinde kolay işleme
+        - Veri yapısını korur
+
+        ### 🎯 Lider Kodları
+
+        - **RTE**: Recep Tayyip Erdoğan (Cumhurbaşkanı)
+        - **ÖÖ**: Özgür Özel (CHP Genel Başkanı)
+        - **MY**: Mansur Yavaş (Ankara Büyükşehir Belediye Başkanı)
+        - **EI**: Ekrem İmamoğlu (İstanbul Büyükşehir Belediye Başkanı)
+
+        ### 📈 Değer Anlamları
+
+        **Sınıflandırma (IS_XXX):**
+        - `1`: İçerik bu liderle ilgili
+        - `0`: İçerik bu liderle ilgisiz
+
+        **Sentiment (XXX_SENTIMENT):**
+        - `1`: Pozitif (övgü, destek)
+        - `0`: Nötr (tarafsız bahsetme)
+        - `-1`: Negatif (eleştiri, olumsuz)
+        - `null`: Lider ilgili değilse boş
+
+        ### ⚙️ Performans Ayarları
+
+        - **Batch Boyutu**: Aynı anda işlenecek kayıt sayısı (1-10)
+        - **Paralel İşlem**: Eşzamanlı thread sayısı (1-3)
+        - **Rate Limit**: API çağrıları arası bekleme süresi (1-3 saniye)
+
+        ### 💡 İpuçları
+
+        1. **Küçük testler**: İlk önce 10-50 kayıtlık küçük dosyalarla test edin
+        2. **Excel formatı**: Profesyonel raporlar için Excel indirmeyi tercih edin
+        3. **Batch ayarları**: Büyük dosyalar için batch boyutunu küçük tutun
+        4. **API limitleri**: Rate limit'i düşük tutarak hata riskini azaltın
+        """)
 
     # Footer
     st.markdown("""
@@ -623,6 +910,9 @@ def main():
         </div>
         <div style="font-size: 0.8rem; color: #9ca3af;">
             🇹🇷 Türk Siyasi Lider Analiz Sistemi V2.0 · Google Gemini AI Destekli
+        </div>
+        <div style="font-size: 0.75rem; color: #9ca3af; margin-top: 0.5rem;">
+            📄 CSV & 📊 Excel Desteği · 🚀 Yüksek Performans · 🔒 Güvenli
         </div>
     </div>
     """, unsafe_allow_html=True)

@@ -1,4 +1,5 @@
 # Production Requirements - Türk Siyasi Lider Analiz Sistemi V2.0
+# Excel ve CSV Desteği
 
 # Core Dependencies
 requests>=2.31.0
@@ -10,9 +11,10 @@ colorama>=0.4.6
 streamlit>=1.28.0
 plotly>=5.17.0
 
-# Data Processing
+# Data Processing & File Support
 numpy>=1.24.0
-openpyxl>=3.1.0
+openpyxl>=3.1.0          # Excel (.xlsx) okuma/yazma desteği
+xlrd>=2.0.1              # Eski Excel (.xls) okuma desteği (opsiyonel)
 
 # Production Extras
 python-dotenv>=1.0.0
@@ -22,3 +24,6 @@ watchdog>=3.0.0
 pytest>=7.4.0
 black>=23.0.0
 flake8>=6.0.0
+
+# Optional: Enhanced Excel Features
+xlsxwriter>=3.1.0        # Gelişmiş Excel yazma özellikleri (opsiyonel)
